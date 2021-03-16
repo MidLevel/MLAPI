@@ -126,7 +126,7 @@ namespace MLAPI.Profiling
             if (!IsRunning)
                 return;
             if (CurrentTick == null)
-                return;
+                StartTick(eventType);
 
             string messageName = messageType < MLAPIConstants.MESSAGE_NAMES.Length ? MLAPIConstants.MESSAGE_NAMES[messageType] : "INVALID_MESSAGE_TYPE";
 
@@ -138,7 +138,7 @@ namespace MLAPI.Profiling
             if (!IsRunning)
                 return;
             if (CurrentTick == null)
-                return;
+                StartTick(eventType);
 
             CurrentTick.StartEvent(eventType, bytes, channelName, messageName);
         }
