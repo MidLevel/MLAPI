@@ -561,84 +561,6 @@ namespace MLAPI
         }
 
         /// <summary>
-        /// Stops the running server
-        /// </summary>
-        public void StopServer()
-        {
-            if (NetworkLog.CurrentLogLevel <= LogLevel.Developer)
-            {
-                NetworkLog.LogInfo(nameof(StopServer));
-            }
-
-            var disconnectedIds = new HashSet<ulong>();
-            //Don't know if I have to disconnect the clients. I'm assuming the NetworkTransport does all the cleaning on shtudown. But this way the clients get a disconnect message from server (so long it does't get lost)
-
-            foreach (KeyValuePair<ulong, NetworkClient> pair in ConnectedClients)
-            {
-                if (!disconnectedIds.Contains(pair.Key))
-                {
-                    disconnectedIds.Add(pair.Key);
-
-                    if (pair.Key == NetworkConfig.NetworkTransport.ServerClientId)
-                    {
-                        continue;
-                    }
-
-                    NetworkConfig.NetworkTransport.DisconnectRemoteClient(pair.Key);
-                }
-            }
-
-            foreach (KeyValuePair<ulong, PendingClient> pair in PendingClients)
-            {
-                if (!disconnectedIds.Contains(pair.Key))
-                {
-                    disconnectedIds.Add(pair.Key);
-                    if (pair.Key == NetworkConfig.NetworkTransport.ServerClientId)
-                    {
-                        continue;
-                    }
-
-                    NetworkConfig.NetworkTransport.DisconnectRemoteClient(pair.Key);
-                }
-            }
-
-            IsServer = false;
-            Shutdown();
-        }
-
-        /// <summary>
-        /// Stops the running host
-        /// </summary>
-        public void StopHost()
-        {
-            if (NetworkLog.CurrentLogLevel <= LogLevel.Developer)
-            {
-                NetworkLog.LogInfo(nameof(StopHost));
-            }
-
-            IsServer = false;
-            IsClient = false;
-            StopServer();
-            //We don't stop client since we dont actually have a transport connection to our own host. We just handle host messages directly in the MLAPI
-        }
-
-        /// <summary>
-        /// Stops the running client
-        /// </summary>
-        public void StopClient()
-        {
-            if (NetworkLog.CurrentLogLevel <= LogLevel.Developer)
-            {
-                NetworkLog.LogInfo(nameof(StopClient));
-            }
-
-            IsClient = false;
-            NetworkConfig.NetworkTransport.DisconnectLocalClient();
-            IsConnectedClient = false;
-            Shutdown();
-        }
-
-        /// <summary>
         /// Starts a Host
         /// </summary>
         public SocketTasks StartHost()
@@ -752,6 +674,36 @@ namespace MLAPI
                 NetworkLog.LogInfo(nameof(Shutdown));
             }
 
+            if (IsServer)
+            {
+                // Before any actual shutdown work is done. Notify the transport of the disconnects to give clients a chance to receive a disconnect message.
+
+                foreach (KeyValuePair<ulong, NetworkClient> pair in ConnectedClients)
+                {
+                    if (pair.Key == NetworkConfig.NetworkTransport.ServerClientId)
+                    {
+                        continue;
+                    }
+
+                    NetworkConfig.NetworkTransport.DisconnectRemoteClient(pair.Key);
+                }
+
+                foreach (KeyValuePair<ulong, PendingClient> pair in PendingClients)
+                {
+                    if (pair.Key == NetworkConfig.NetworkTransport.ServerClientId)
+                    {
+                        continue;
+                    }
+
+                    NetworkConfig.NetworkTransport.DisconnectRemoteClient(pair.Key);
+                }
+            }
+            else
+            {
+                // Disconnect the local client cleanly
+                NetworkConfig.NetworkTransport.DisconnectLocalClient();
+            }
+
             // Unregister INetworkUpdateSystem before shutting down the RpcQueueContainer
             this.UnregisterAllNetworkUpdates();
 
@@ -774,6 +726,8 @@ namespace MLAPI
             IsListening = false;
             IsServer = false;
             IsClient = false;
+            IsConnectedClient = false;
+
             NetworkConfig.NetworkTransport.OnTransportEvent -= HandleRawTransportPoll;
 
             if (BufferManager != null)
@@ -1075,8 +1029,7 @@ namespace MLAPI
                     }
                     else
                     {
-                        IsConnectedClient = false;
-                        StopClient();
+                        Shutdown();
                     }
 
                     OnClientDisconnectCallback?.Invoke(clientId);

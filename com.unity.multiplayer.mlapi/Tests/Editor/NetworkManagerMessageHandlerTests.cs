@@ -159,7 +159,7 @@ namespace MLAPI.EditorTests
                 }
 
                 // Stop server to trigger full shutdown
-                networkManager.StopServer();
+                networkManager.Shutdown();
 
                 // Replace the real message handler with a dummy one that just prints a result
                 networkManager.MessageHandler = new DummyMessageHandler();
@@ -287,7 +287,7 @@ namespace MLAPI.EditorTests
                 }
 
                 // Full cleanup
-                networkManager.StopClient();
+                networkManager.Shutdown();
             }
 
             // Ensure no missmatches with expectations

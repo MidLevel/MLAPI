@@ -182,27 +182,7 @@ namespace MLAPI.RuntimeTests
         /// </summary>
         private static void StopNetworkManagerMode()
         {
-            switch (CurrentNetworkManagerMode)
-            {
-                case NetworkManagerOperatingMode.Host:
-                    {
-                        //Stop the host
-                        NetworkManagerObject.StopHost();
-                        break;
-                    }
-                case NetworkManagerOperatingMode.Server:
-                    {
-                        //Stop the server
-                        NetworkManagerObject.StopServer();
-                        break;
-                    }
-                case NetworkManagerOperatingMode.Client:
-                    {
-                        //Stop the client
-                        NetworkManagerObject.StopClient();
-                        break;
-                    }
-            }
+            NetworkManagerObject.Shutdown();
 
             Debug.Log($"{CurrentNetworkManagerMode} stopped.");
             CurrentNetworkManagerMode = NetworkManagerOperatingMode.None;
