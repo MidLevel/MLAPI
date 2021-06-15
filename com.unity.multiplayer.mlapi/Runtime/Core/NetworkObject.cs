@@ -20,9 +20,7 @@ namespace MLAPI
     [DisallowMultipleComponent]
     public sealed class NetworkObject : MonoBehaviour
     {
-        [HideInInspector]
-        [SerializeField]
-        internal uint GlobalObjectIdHash;
+        [HideInInspector] [SerializeField] internal uint GlobalObjectIdHash;
 
 #if UNITY_EDITOR
         // HEAD: DO NOT USE! TEST ONLY TEMP IMPL, WILL BE REMOVED
@@ -280,7 +278,7 @@ namespace MLAPI
             using (var buffer = PooledNetworkBuffer.Get())
             using (var writer = PooledNetworkWriter.Get(buffer))
             {
-                writer.WriteUInt16Packed((ushort)networkObjects.Count);
+                writer.WriteUInt16Packed((ushort) networkObjects.Count);
 
                 for (int i = 0; i < networkObjects.Count; i++)
                 {
@@ -379,7 +377,7 @@ namespace MLAPI
             using (var buffer = PooledNetworkBuffer.Get())
             using (var writer = PooledNetworkWriter.Get(buffer))
             {
-                writer.WriteUInt16Packed((ushort)networkObjects.Count);
+                writer.WriteUInt16Packed((ushort) networkObjects.Count);
 
                 for (int i = 0; i < networkObjects.Count; i++)
                 {
@@ -395,10 +393,18 @@ namespace MLAPI
 
         private void OnDestroy()
         {
-            if (NetworkManager != null && NetworkManager.SpawnManager != null && NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(NetworkObjectId))
+            if (NetworkManager == null || NetworkManager.SpawnManager == null)
             {
-                NetworkManager.SpawnManager.OnDestroyObject(NetworkObjectId, false);
+                return;
             }
+
+            if (!NetworkManager.SpawnManager.SpawnedObjects.ContainsKey(NetworkObjectId))
+            {
+                Debug.LogWarning($"Trying to destroy object {NetworkObjectId} but it doesn't seem to exist anymore!");
+                return;
+            }
+
+            NetworkManager.SpawnManager.OnDestroyObject(this, false);
         }
 
         [MethodImpl(MethodImplOptions.AggressiveInlining)]
@@ -419,7 +425,7 @@ namespace MLAPI
                 spawnPayload.Position = 0;
             }
 
-            NetworkManager.SpawnManager.SpawnNetworkObjectLocally(this, NetworkManager.SpawnManager.GetNetworkObjectId(), false, playerObject, ownerClientId, spawnPayload, spawnPayload != null, spawnPayload == null ? 0 : (int)spawnPayload.Length, false, destroyWithScene);
+            NetworkManager.SpawnManager.SpawnNetworkObjectLocally(this, NetworkManager.SpawnManager.GetNetworkObjectId(), false, playerObject, ownerClientId, spawnPayload, spawnPayload != null, spawnPayload == null ? 0 : (int) spawnPayload.Length, false, destroyWithScene);
 
             for (int i = 0; i < NetworkManager.ConnectedClientsList.Count; i++)
             {
@@ -698,7 +704,7 @@ namespace MLAPI
                 // If our current buffer position is greater than our positionBeforeNetworkVariableData then we wrote NetworkVariable data
                 // Part 1: This will include the total NetworkVariable data size, if there was NetworkVariable data written, to the stream
                 // in order to be able to skip past this entry on the deserialization side in the event this NetworkObject fails to be
-                // constructed (See Part 2 below in the DeserializeSceneObject method) 
+                // constructed (See Part 2 below in the DeserializeSceneObject method)
                 if (buffer.Position > positionBeforeNetworkVariableData)
                 {
                     // Store our current stream buffer position
@@ -711,7 +717,7 @@ namespace MLAPI
                     buffer.Position = positionBeforeNetworkVariableData - sizeof(uint);
 
                     // Now write the actual data size written into our unpacked UInt32 placeholder position
-                    writer.WriteUInt32((uint)(networkVariableDataSize));
+                    writer.WriteUInt32((uint) (networkVariableDataSize));
 
                     // Finally, revert the buffer position back to the end of the network variable data written
                     buffer.Position = endOfNetworkVariableData;
@@ -791,7 +797,7 @@ namespace MLAPI
                 while (bufferQueue.Count > 0)
                 {
                     Messaging.Buffering.BufferManager.BufferedMessage message = bufferQueue.Dequeue();
-                    networkManager.HandleIncomingData(message.SenderClientId, message.NetworkChannel, new ArraySegment<byte>(message.NetworkBuffer.GetBuffer(), (int)message.NetworkBuffer.Position, (int)message.NetworkBuffer.Length), message.ReceiveTime, false);
+                    networkManager.HandleIncomingData(message.SenderClientId, message.NetworkChannel, new ArraySegment<byte>(message.NetworkBuffer.GetBuffer(), (int) message.NetworkBuffer.Position, (int) message.NetworkBuffer.Length), message.ReceiveTime, false);
                     Messaging.Buffering.BufferManager.RecycleConsumedBufferedMessage(message);
                 }
             }

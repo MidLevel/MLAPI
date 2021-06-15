@@ -1518,7 +1518,7 @@ namespace MLAPI
                         if (PrefabHandler.ContainsHandler(ConnectedClients[clientId].PlayerObject.GlobalObjectIdHash))
                         {
                             PrefabHandler.HandleNetworkPrefabDestroy(ConnectedClients[clientId].PlayerObject);
-                            SpawnManager.OnDestroyObject(ConnectedClients[clientId].PlayerObject.NetworkObjectId, false);
+                            SpawnManager.OnDestroyObject(ConnectedClients[clientId].PlayerObject, false);
                         }
                         else
                         {
@@ -1536,7 +1536,7 @@ namespace MLAPI
                                 if (PrefabHandler.ContainsHandler(ConnectedClients[clientId].OwnedObjects[i].GlobalObjectIdHash))
                                 {
                                     PrefabHandler.HandleNetworkPrefabDestroy(ConnectedClients[clientId].OwnedObjects[i]);
-                                    SpawnManager.OnDestroyObject(ConnectedClients[clientId].OwnedObjects[i].NetworkObjectId, false);
+                                    SpawnManager.OnDestroyObject(ConnectedClients[clientId].OwnedObjects[i], false);
                                 }
                                 else
                                 {
