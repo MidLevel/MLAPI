@@ -267,6 +267,16 @@ namespace MLAPI.Spawning
             }
         }
 
+        // convenience method, probably should be in test library
+        internal void SpawnNetworkObjectLocally(NetworkObject networkObject, ulong? networkId = null)
+        {
+            if (networkId == null)
+            {
+                networkId = GetNetworkObjectId();
+            }
+            SpawnNetworkObjectLocally(networkObject, (ulong)networkId, false, false, null, null, false, 0, false, true);
+        }
+
         // Ran on both server and client
         internal void SpawnNetworkObjectLocally(NetworkObject networkObject, ulong networkId, bool sceneObject, bool playerObject, ulong? ownerClientId, Stream dataStream, bool readPayload, int payloadLength, bool readNetworkVariable, bool destroyWithScene)
         {
@@ -351,6 +361,8 @@ namespace MLAPI.Spawning
             {
                 networkObject.InvokeBehaviourNetworkSpawn(null);
             }
+
+            NetworkManager.Singleton.InterestManager.AddObject(networkObject);
         }
 
         internal void SendSpawnCallForObject(ulong clientId, NetworkObject networkObject, Stream payload)
@@ -693,6 +705,8 @@ namespace MLAPI.Spawning
             }
 
             var gobj = networkObject.gameObject;
+            NetworkObject no = gobj.GetComponent<NetworkObject>();
+            NetworkManager.InterestManager.RemoveObject(no);
 
             if (destroyGameObject && gobj != null)
             {

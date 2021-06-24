@@ -108,7 +108,14 @@ namespace MLAPI.Prototyping
 
         private Vector3 m_CurrentPosition
         {
-            get { return m_UseLocal.Value ? m_Transform.localPosition : m_Transform.position; }
+            get
+            {
+                if (m_Transform == null)
+                {
+                    m_Transform = transform;
+                }
+                return m_UseLocal.Value ? m_Transform.localPosition : m_Transform.position;
+            }
             set
             {
                 if (m_UseLocal.Value)

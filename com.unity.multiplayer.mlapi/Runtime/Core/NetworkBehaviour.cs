@@ -354,6 +354,7 @@ namespace MLAPI
         internal readonly List<INetworkVariable> NetworkVariableFields = new List<INetworkVariable>();
 
         private static HashSet<NetworkObject> s_Touched = new HashSet<NetworkObject>();
+        private static HashSet<NetworkObject> s_TouchedThisClient = new HashSet<NetworkObject>();
         private static Dictionary<Type, FieldInfo[]> s_FieldTypes = new Dictionary<Type, FieldInfo[]>();
 
         private static FieldInfo[] GetFieldInfoForType(Type type)
@@ -449,7 +450,6 @@ namespace MLAPI
 #if DEVELOPMENT_BUILD || UNITY_EDITOR
         private static ProfilerMarker s_NetworkBehaviourUpdate = new ProfilerMarker($"{nameof(NetworkBehaviour)}.{nameof(NetworkBehaviourUpdate)}");
 #endif
-
         internal static void NetworkBehaviourUpdate(NetworkManager networkManager)
         {
             // Do not execute NetworkBehaviourUpdate more than once per network tick
@@ -471,10 +471,11 @@ namespace MLAPI
                     s_Touched.Clear();
                     for (int i = 0; i < networkManager.ConnectedClientsList.Count; i++)
                     {
+                        s_TouchedThisClient.Clear();
                         var client = networkManager.ConnectedClientsList[i];
-                        var spawnedObjs = networkManager.SpawnManager.SpawnedObjectsList;
-                        s_Touched.UnionWith(spawnedObjs);
-                        foreach (var sobj in spawnedObjs)
+                        networkManager.InterestManager.QueryFor(client, s_TouchedThisClient);
+
+                        foreach (var sobj in s_TouchedThisClient)
                         {
                             // Sync just the variables for just the objects this client sees
                             for (int k = 0; k < sobj.ChildNetworkBehaviours.Count; k++)
@@ -482,6 +483,7 @@ namespace MLAPI
                                 sobj.ChildNetworkBehaviours[k].VariableUpdate(client.ClientId);
                             }
                         }
+                        s_Touched.UnionWith(s_TouchedThisClient);
                     }
 
                     // Now, reset all the no-longer-dirty variables

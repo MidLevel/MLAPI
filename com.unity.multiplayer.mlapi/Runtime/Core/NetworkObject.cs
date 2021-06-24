@@ -9,6 +9,8 @@ using MLAPI.Logging;
 using MLAPI.Serialization.Pooled;
 using MLAPI.Transports;
 using MLAPI.Serialization;
+using MLAPI.Interest;
+
 using UnityEngine;
 
 namespace MLAPI
@@ -18,8 +20,11 @@ namespace MLAPI
     /// </summary>
     [AddComponentMenu("MLAPI/NetworkObject", -99)]
     [DisallowMultipleComponent]
+
     public sealed class NetworkObject : MonoBehaviour
     {
+        public List<InterestNode> InterestNodes = new List<InterestNode>();
+
         [HideInInspector]
         [SerializeField]
         internal uint GlobalObjectIdHash;
@@ -183,6 +188,26 @@ namespace MLAPI
         /// </summary>
         public bool AutoObjectParentSync = true;
 
+        public InterestSettings InterestSettingsOverride;
+        public InterestSettings InterestSettings
+        {
+            get
+            {
+                InterestSettings result = null;
+                if (InterestSettingsOverride)
+                {
+                    result = InterestSettingsOverride;
+                }
+                else if (NetworkManager.InterestSettings)
+                {
+                    result = NetworkManager.InterestSettings;
+                }
+
+                return result;
+            }
+            set => InterestSettingsOverride = value;
+        }
+
         internal readonly HashSet<ulong> Observers = new HashSet<ulong>();
 
         /// <summary>
@@ -198,6 +223,7 @@ namespace MLAPI
 
             return Observers.GetEnumerator();
         }
+
 
         /// <summary>
         /// Whether or not this object is visible to a specific client
@@ -479,7 +505,6 @@ namespace MLAPI
         {
             NetworkManager.SpawnManager.DespawnObject(this, destroy);
         }
-
 
         /// <summary>
         /// Removes all ownership of an object from any client. Can only be called from server
@@ -1058,6 +1083,16 @@ namespace MLAPI
             }
 
             return networkObject;
+        }
+
+        // Trigger the Interest system to do an update sweep on any Interest nodes
+        //  I am associated with
+        public void UpdateInterest()
+        {
+            foreach (var node in InterestNodes)
+            {
+                node?.UpdateObject(this);
+            }
         }
     }
 }

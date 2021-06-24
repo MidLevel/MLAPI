@@ -16,6 +16,7 @@ using MLAPI.Spawning;
 using MLAPI.Exceptions;
 using MLAPI.Transports.Tasks;
 using MLAPI.Messaging.Buffering;
+using MLAPI.Interest;
 using Unity.Profiling;
 
 namespace MLAPI
@@ -57,6 +58,8 @@ namespace MLAPI
 
         internal RpcQueueContainer RpcQueueContainer { get; private set; }
         internal NetworkTickSystem NetworkTickSystem { get; private set; }
+
+        internal InterestManager InterestManager { get; private set; }
 
         internal SnapshotSystem SnapshotSystem { get; private set; }
 
@@ -225,6 +228,10 @@ namespace MLAPI
 
         internal static event Action OnSingletonReady;
 
+        // the interest settings objects receive unless they have a pre-prefab override
+        public InterestSettings InterestSettings;
+
+
 #if UNITY_EDITOR
         private void OnValidate()
         {
@@ -347,6 +354,8 @@ namespace MLAPI
             BufferManager = new BufferManager(this);
 
             SceneManager = new NetworkSceneManager(this);
+
+            InterestManager = new InterestManager();
 
             // Only create this if it's not already set (like in test cases)
             MessageHandler ??= CreateMessageHandler();
@@ -801,6 +810,12 @@ namespace MLAPI
             {
                 NetworkTickSystem.Dispose();
                 NetworkTickSystem = null;
+            }
+
+            if (InterestManager != null)
+            {
+                InterestManager.Dispose();
+                InterestManager = null;
             }
 
 #if !UNITY_2020_2_OR_NEWER
@@ -1540,7 +1555,6 @@ namespace MLAPI
                     }
 
                     // TODO: Could(should?) be replaced with more memory per client, by storing the visiblity
-
                     foreach (var sobj in SpawnManager.SpawnedObjectsList)
                     {
                         sobj.Observers.Remove(clientId);
@@ -1611,7 +1625,6 @@ namespace MLAPI
                 }
 
                 m_ObservedObjects.Clear();
-
                 foreach (var sobj in SpawnManager.SpawnedObjectsList)
                 {
                     if (ownerClientId == ServerClientId || sobj.CheckObjectVisibility == null || sobj.CheckObjectVisibility(ownerClientId))
