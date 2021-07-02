@@ -348,7 +348,6 @@ namespace MLAPI.Messaging
                 return;
             }
 
-            ProfilerStatManager.RpcsRcvd.Record();
             PerformanceDataManager.Increment(ProfilerConstants.RpcReceived);
 
             var rpcQueueContainer = NetworkManager.RpcQueueContainer;
@@ -358,14 +357,12 @@ namespace MLAPI.Messaging
         public void HandleUnnamedMessage(ulong clientId, Stream stream)
         {
             PerformanceDataManager.Increment(ProfilerConstants.UnnamedMessageReceived);
-            ProfilerStatManager.UnnamedMessage.Record();
             NetworkManager.CustomMessagingManager.InvokeUnnamedMessage(clientId, stream);
         }
 
         public void HandleNamedMessage(ulong clientId, Stream stream)
         {
             PerformanceDataManager.Increment(ProfilerConstants.NamedMessageReceived);
-            ProfilerStatManager.NamedMessage.Record();
             using (var reader = PooledNetworkReader.Get(stream))
             {
                 ulong hash = reader.ReadUInt64Packed();

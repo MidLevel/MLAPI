@@ -146,8 +146,6 @@ namespace MLAPI.Messaging
                 // write the message to send
                 sendStream.Writer.WriteBytes(queueItem.MessageData.Array, queueItem.MessageData.Count, queueItem.MessageData.Offset);
 
-                ProfilerStatManager.BytesSent.Record(queueItem.MessageData.Count);
-                ProfilerStatManager.RpcsSent.Record();
                 PerformanceDataManager.Increment(ProfilerConstants.ByteSent, queueItem.MessageData.Count);
                 PerformanceDataManager.Increment(ProfilerConstants.RpcSent);
             }
@@ -179,7 +177,6 @@ namespace MLAPI.Messaging
                         entry.Value.Buffer.SetLength(0);
                         entry.Value.Buffer.Position = 0;
                         entry.Value.IsEmpty = true;
-                        ProfilerStatManager.RpcBatchesSent.Record();
                         PerformanceDataManager.Increment(ProfilerConstants.RpcBatchesSent);
                     }
                 }

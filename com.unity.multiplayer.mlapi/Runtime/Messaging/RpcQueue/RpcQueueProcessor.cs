@@ -77,7 +77,6 @@ namespace MLAPI.Messaging
                             }
                         }
 
-                        ProfilerStatManager.RpcsQueueProc.Record();
                         PerformanceDataManager.Increment(ProfilerConstants.RpcQueueProcessed);
                         currentQueueItem = currentFrame.GetNextQueueItem();
                     }
@@ -146,12 +145,10 @@ namespace MLAPI.Messaging
                                 }
 
                                 PerformanceDataManager.Increment(ProfilerConstants.RpcSent, queueItem.ClientNetworkIds.Length);
-                                ProfilerStatManager.RpcsSent.Record(queueItem.ClientNetworkIds.Length);
                                 break;
                             }
 
                             PerformanceDataManager.Increment(ProfilerConstants.RpcSent, queueItem.ClientNetworkIds.Length);
-                            ProfilerStatManager.RpcsSent.Record(queueItem.ClientNetworkIds.Length);
                             break;
                         }
                     case RpcQueueContainer.QueueItemType.DestroyObject:
@@ -164,12 +161,10 @@ namespace MLAPI.Messaging
                                 }
 
                                 PerformanceDataManager.Increment(ProfilerConstants.RpcSent, queueItem.ClientNetworkIds.Length);
-                                ProfilerStatManager.RpcsSent.Record(queueItem.ClientNetworkIds.Length);
                                 break;
                             }
 
                             PerformanceDataManager.Increment(ProfilerConstants.RpcSent, queueItem.ClientNetworkIds.Length);
-                            ProfilerStatManager.RpcsSent.Record(queueItem.ClientNetworkIds.Length);
                             break;
                         }
                 }
@@ -262,8 +257,6 @@ namespace MLAPI.Messaging
 
                         PerformanceDataManager.Increment(ProfilerConstants.ByteSent, (int)queueItem.StreamSize);
                         PerformanceDataManager.Increment(ProfilerConstants.RpcSent);
-                        ProfilerStatManager.BytesSent.Record((int)queueItem.StreamSize);
-                        ProfilerStatManager.RpcsSent.Record();
                         break;
                     }
                 case RpcQueueContainer.QueueItemType.ClientRpc:
@@ -274,12 +267,10 @@ namespace MLAPI.Messaging
 
                             //For each packet sent, we want to record how much data we have sent
                             PerformanceDataManager.Increment(ProfilerConstants.ByteSent, (int)queueItem.StreamSize);
-                            ProfilerStatManager.BytesSent.Record((int)queueItem.StreamSize);
                         }
 
                         //For each client we send to, we want to record how many RPCs we have sent
                         PerformanceDataManager.Increment(ProfilerConstants.RpcSent, queueItem.ClientNetworkIds.Length);
-                        ProfilerStatManager.RpcsSent.Record(queueItem.ClientNetworkIds.Length);
 
                         break;
                     }

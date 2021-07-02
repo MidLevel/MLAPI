@@ -185,16 +185,10 @@ namespace MLAPI.Messaging
 
                 if (rpcQueueHistoryItem.QueueItemOffsets.Count > 0)
                 {
-                    if (queueType == RpcQueueHistoryFrame.QueueFrameType.Inbound)
-                    {
-                        ProfilerStatManager.RpcInQueueSize.Record((int)rpcQueueHistoryItem.TotalSize);
-                        PerformanceDataManager.Increment(ProfilerConstants.RpcInQueueSize, (int)rpcQueueHistoryItem.TotalSize);
-                    }
-                    else
-                    {
-                        ProfilerStatManager.RpcOutQueueSize.Record((int)rpcQueueHistoryItem.TotalSize);
-                        PerformanceDataManager.Increment(ProfilerConstants.RpcOutQueueSize, (int)rpcQueueHistoryItem.TotalSize);
-                    }
+                    PerformanceDataManager.Increment(
+                        queueType == RpcQueueHistoryFrame.QueueFrameType.Inbound
+                            ? ProfilerConstants.RpcInQueueSize
+                            : ProfilerConstants.RpcOutQueueSize, (int) rpcQueueHistoryItem.TotalSize);
                 }
 
                 ResetQueueHistoryFrame(rpcQueueHistoryItem);
