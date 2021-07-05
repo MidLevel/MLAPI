@@ -236,6 +236,13 @@ namespace MLAPI.Transports.UNET
             {
                 size += 8;
 
+                if (buffer.Length < size)
+                {
+                    byte[] extendedBuffer = new byte[size];
+                    Buffer.BlockCopy(buffer, 0, extendedBuffer, 0, buffer.Length);
+                    buffer = extendedBuffer;
+                }
+
                 int connectionIdOffset = size - 9;
 
                 for (byte i = 0; i < sizeof(ulong); i++) buffer[connectionIdOffset + i] = ((byte)((ulong)connectionId >> (i * 8)));
