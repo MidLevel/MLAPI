@@ -4,7 +4,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using MLAPI;
 using MLAPI.Messaging;
-using MLAPI.Profiling;
+
 
 namespace TestProject.ManualTests
 {
@@ -124,23 +124,7 @@ namespace TestProject.ManualTests
         {
             m_LastStatsDump = "Server Stats";
             m_LastStatsDump += "\ndeltaTime: [" + Time.deltaTime.ToString() + "]";
-            if (ProfilerStatManager.AllStats.Count != statsinfo.StatValues.Count)
-            {
-                Debug.LogError("[StatsDisplay-Error][Mismatch] Recieved " + statsinfo.StatValues.Count.ToString() + " values and have " + ProfilerStatManager.AllStats.Count.ToString() + " profiler stats entries!");
-            }
-            else
-            {
-                var statsCounter = 0;
-                foreach (ProfilerStat p in ProfilerStatManager.AllStats)
-                {
-                    if (m_LastStatsDump != string.Empty)
-                    {
-                        m_LastStatsDump += "\n";
-                    }
-                    m_LastStatsDump += p.PrettyPrintName + ": " + statsinfo.StatValues[statsCounter].ToString(("0.0"));
-                    statsCounter++;
-                }
-            }
+            // TODO: Fill out NetStats related information here when ready
         }
 
         /// <summary>
@@ -160,6 +144,9 @@ namespace TestProject.ManualTests
             }
         }
 
+
+        private const int k_NumValues = 10;
+
         /// <summary>
         /// Coroutine to update the stats information
         /// </summary>
@@ -174,22 +161,16 @@ namespace TestProject.ManualTests
                     {
                         m_LastStatsDump = m_IsServer ? "Server Stats" : "Client Stats";
                         m_LastStatsDump += "\ndeltaTime: [" + Time.deltaTime.ToString() + "]";
-                        foreach (ProfilerStat p in ProfilerStatManager.AllStats)
-                        {
-                            if (m_LastStatsDump != string.Empty)
-                            {
-                                m_LastStatsDump += "\n";
-                            }
-                            m_LastStatsDump += p.PrettyPrintName + ": " + p.SampleRate().ToString("0.0");
-                        }
+
+                        // TODO: Fill out NetStats related information here when ready
                     }
                     if (NetworkManager.Singleton.IsServer && m_ClientsToUpdate.Count > 0)
                     {
                         var statsInfoContainer = new StatsInfoContainer();
                         statsInfoContainer.StatValues = new List<float>();
-                        foreach (ProfilerStat p in ProfilerStatManager.AllStats)
+                        for(int i = 0; i < k_NumValues; i++ )
                         {
-                            statsInfoContainer.StatValues.Add(p.SampleRate());
+                            statsInfoContainer.StatValues.Add(Random.Range(1.0f,100.0f));
                         }
                         ReceiveStatsClientRPC(statsInfoContainer);
                     }
