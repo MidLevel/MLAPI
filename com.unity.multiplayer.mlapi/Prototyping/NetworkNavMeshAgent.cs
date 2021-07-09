@@ -47,8 +47,49 @@ namespace MLAPI.Prototyping
             m_Agent = GetComponent<NavMeshAgent>();
         }
 
+        private ClientRpcParams m_ClientParams;
         private Vector3 m_LastDestination = Vector3.zero;
         private float m_LastCorrectionTime = 0f;
+
+        public override void NetworkStart()
+        {
+            base.NetworkStart();
+
+            if (IsOwner)
+            {
+                CacheClientParams();
+
+                NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
+            }
+        }
+
+        public override void OnGainedOwnership()
+        {
+            base.OnGainedOwnership();
+
+            CacheClientParams();
+
+            NetworkManager.Singleton.OnClientConnectedCallback += OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback += OnClientDisconnect;
+        }
+
+        public override void OnLostOwnership()
+        {
+            base.OnLostOwnership();
+
+            NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+            NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
+        }
+
+        void OnDestroy()
+        {
+            if (IsOwner)
+            {
+                NetworkManager.Singleton.OnClientConnectedCallback -= OnClientConnected;
+                NetworkManager.Singleton.OnClientDisconnectCallback -= OnClientDisconnect;
+            }
+        }
 
         private void Update()
         {
@@ -62,13 +103,18 @@ namespace MLAPI.Prototyping
                 m_LastDestination = m_Agent.destination;
                 if (!EnableProximity)
                 {
-                    OnNavMeshStateUpdateClientRpc(m_Agent.destination, m_Agent.velocity, transform.position);
+                    OnNavMeshStateUpdateClientRpc(m_Agent.destination, m_Agent.velocity, transform.position, m_ClientParams);
                 }
                 else
                 {
                     var proximityClients = new List<ulong>();
                     foreach (KeyValuePair<ulong, NetworkClient> client in NetworkManager.ConnectedClients)
                     {
+                        if (client.Key == OwnerClientId)
+                        {
+                            continue;
+                        }
+
                         if (client.Value.PlayerObject == null || Vector3.Distance(client.Value.PlayerObject.transform.position, transform.position) <= ProximityRange)
                         {
                             proximityClients.Add(client.Key);
@@ -83,13 +129,18 @@ namespace MLAPI.Prototyping
             {
                 if (!EnableProximity)
                 {
-                    OnNavMeshCorrectionUpdateClientRpc(m_Agent.velocity, transform.position);
+                    OnNavMeshCorrectionUpdateClientRpc(m_Agent.velocity, transform.position, m_ClientParams);
                 }
                 else
                 {
                     var proximityClients = new List<ulong>();
                     foreach (KeyValuePair<ulong, NetworkClient> client in NetworkManager.ConnectedClients)
                     {
+                        if (client.Key == OwnerClientId)
+                        {
+                            continue;
+                        }
+
                         if (client.Value.PlayerObject == null || Vector3.Distance(client.Value.PlayerObject.transform.position, transform.position) <= ProximityRange)
                         {
                             proximityClients.Add(client.Key);
@@ -116,6 +167,34 @@ namespace MLAPI.Prototyping
         {
             m_Agent.Warp(Vector3.Lerp(transform.position, position, DriftCorrectionPercentage));
             m_Agent.velocity = velocity;
+        }
+
+        private void CacheClientParams()
+        {
+            List<ulong> clients = new List<ulong>();
+
+            foreach (ulong clientId in NetworkManager.Singleton.ConnectedClients.Keys)
+            {
+                if (clientId != OwnerClientId)
+                {
+                    clients.Add(clientId);
+                }
+            }
+
+            m_ClientParams = new ClientRpcParams
+            {
+                Send = new ClientRpcSendParams { TargetClientIds = clients.ToArray() }
+            };
+        }
+
+        private void OnClientConnected(ulong clientId)
+        {
+            CacheClientParams();
+        }
+
+        private void OnClientDisconnect(ulong clientId)
+        {
+            CacheClientParams();
         }
     }
 }
