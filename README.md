@@ -74,6 +74,6 @@ public class Chat : NetworkBehaviour
                 GUILayout.Label(ChatMessages[i]);
             }
         }
-    }
-}
-```
+    }  
+} 
+```   
