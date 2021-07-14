@@ -28,11 +28,11 @@ namespace MLAPI.RuntimeTests
         // Start is called before the first frame update
         private void Start()
         {
-            m_ServerParams.Send.UpdateStage = NetworkUpdateStage.Initialization;
+            m_ServerParams.Send.UpdateStage = NetworkUpdateStage.EarlyUpdate;
             m_ClientParams.Send.UpdateStage = NetworkUpdateStage.Update;
 
-            m_ServerParams.Receive.UpdateStage = NetworkUpdateStage.Initialization;
-            m_ClientParams.Receive.UpdateStage = NetworkUpdateStage.Initialization;
+            m_ServerParams.Receive.UpdateStage = NetworkUpdateStage.EarlyUpdate;
+            m_ClientParams.Receive.UpdateStage = NetworkUpdateStage.EarlyUpdate;
 
             m_MaxStagesSent = (Enum.GetValues(typeof(NetworkUpdateStage)).Length) * MaxIterations;
 
@@ -93,9 +93,6 @@ namespace MLAPI.RuntimeTests
 
                     switch (m_ServerParams.Send.UpdateStage)
                     {
-                        case NetworkUpdateStage.Initialization:
-                            m_ServerParams.Send.UpdateStage = NetworkUpdateStage.EarlyUpdate;
-                            break;
                         case NetworkUpdateStage.EarlyUpdate:
                             m_ServerParams.Send.UpdateStage = NetworkUpdateStage.FixedUpdate;
                             break;
@@ -112,7 +109,7 @@ namespace MLAPI.RuntimeTests
                             m_ServerParams.Send.UpdateStage = NetworkUpdateStage.PostLateUpdate;
                             break;
                         case NetworkUpdateStage.PostLateUpdate:
-                            m_ServerParams.Send.UpdateStage = NetworkUpdateStage.Initialization;
+                            m_ServerParams.Send.UpdateStage = NetworkUpdateStage.EarlyUpdate;
                             break;
                     }
                 }

@@ -70,11 +70,11 @@ namespace TestProject.RuntimeTests
             });
 
             // Set the RPC Batch sending mode
-            m_ServerNetworkManager.RpcQueueContainer.EnableBatchedRpcs(useBatching);
+            m_ServerNetworkManager.MessageQueueContainer.EnableBatchedMessages(useBatching);
 
             for (int i = 0; i < m_ClientNetworkManagers.Length; i++)
             {
-                m_ClientNetworkManagers[i].RpcQueueContainer.EnableBatchedRpcs(useBatching);
+                m_ClientNetworkManagers[i].MessageQueueContainer.EnableBatchedMessages(useBatching);
             }
 
             // [Host-Side] Get the Host owned instance of the RpcQueueManualTests

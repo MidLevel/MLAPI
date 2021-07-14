@@ -7,11 +7,10 @@ using MLAPI.Serialization.Pooled;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.SceneManagement;
-using System.Collections.Generic;
 using MLAPI.Configuration;
-using MLAPI.Messaging.Buffering;
 using MLAPI.Profiling;
 using MLAPI.Serialization;
+using MLAPI.Transports;
 
 namespace MLAPI.Messaging
 {
@@ -86,7 +85,6 @@ namespace MLAPI.Messaging
 
                 void DelayedSpawnAction(Stream continuationStream)
                 {
-                    
                     using (var continuationReader = PooledNetworkReader.Get(continuationStream))
                     {
                         if (!NetworkManager.NetworkConfig.EnableSceneManagement)
@@ -139,7 +137,8 @@ namespace MLAPI.Messaging
         {
             using (var reader = PooledNetworkReader.Get(stream))
             {
-                var isPlayerObject = reader.ReadBool();
+                var isPlayerObjectI = reader.ReadByte();
+                bool isPlayerObject = isPlayerObjectI != 0;
                 var networkId = reader.ReadUInt64Packed();
                 var ownerClientId = reader.ReadUInt64Packed();
                 var hasParent = reader.ReadBool();
@@ -169,19 +168,6 @@ namespace MLAPI.Messaging
                 var networkObject = NetworkManager.SpawnManager.CreateLocalNetworkObject(softSync, prefabHash, ownerClientId, parentNetworkId, pos, rot, isReparented);
                 networkObject.SetNetworkParenting(isReparented, latestParent);
                 NetworkManager.SpawnManager.SpawnNetworkObjectLocally(networkObject, networkId, softSync, isPlayerObject, ownerClientId, stream, hasPayload, payLoadLength, true, false);
-
-                Queue<BufferManager.BufferedMessage> bufferQueue = NetworkManager.BufferManager.ConsumeBuffersForNetworkId(networkId);
-
-                // Apply buffered messages
-                if (bufferQueue != null)
-                {
-                    while (bufferQueue.Count > 0)
-                    {
-                        BufferManager.BufferedMessage message = bufferQueue.Dequeue();
-                        NetworkManager.HandleIncomingData(message.SenderClientId, message.NetworkChannel, new ArraySegment<byte>(message.NetworkBuffer.GetBuffer(), (int)message.NetworkBuffer.Position, (int)message.NetworkBuffer.Length), message.ReceiveTime, false);
-                        BufferManager.RecycleConsumedBufferedMessage(message);
-                    }
-                }
             }
         }
 
@@ -283,13 +269,13 @@ namespace MLAPI.Messaging
             }
         }
 
-        public void HandleNetworkVariableDelta(ulong clientId, Stream stream, Action<ulong, PreBufferPreset> bufferCallback, PreBufferPreset bufferPreset)
+        public void HandleNetworkVariableDelta(ulong clientId, Stream stream)
         {
             if (!NetworkManager.NetworkConfig.EnableNetworkVariable)
             {
                 if (NetworkLog.CurrentLogLevel <= LogLevel.Normal)
                 {
-                    NetworkLog.LogWarning($"{nameof(NetworkConstants.NETWORK_VARIABLE_DELTA)} received but {nameof(NetworkConfig.EnableNetworkVariable)} is false");
+                    NetworkLog.LogWarning($"Network variable delta received but {nameof(NetworkConfig.EnableNetworkVariable)} is false");
                 }
 
                 return;
@@ -308,7 +294,7 @@ namespace MLAPI.Messaging
                     {
                         if (NetworkLog.CurrentLogLevel <= LogLevel.Normal)
                         {
-                            NetworkLog.LogWarning($"{nameof(NetworkConstants.NETWORK_VARIABLE_DELTA)} message received for a non-existent behaviour. {nameof(networkObjectId)}: {networkObjectId}, {nameof(networkBehaviourIndex)}: {networkBehaviourIndex}");
+                            NetworkLog.LogWarning($"Network variable delta message received for a non-existent behaviour. {nameof(networkObjectId)}: {networkObjectId}, {nameof(networkBehaviourIndex)}: {networkBehaviourIndex}");
                         }
                     }
                     else
@@ -316,21 +302,12 @@ namespace MLAPI.Messaging
                         NetworkBehaviour.HandleNetworkVariableDeltas(instance.NetworkVariableFields, stream, clientId, instance, NetworkManager);
                     }
                 }
-                else if (NetworkManager.IsServer || !NetworkManager.NetworkConfig.EnableMessageBuffering)
+                else if (NetworkManager.IsServer)
                 {
                     if (NetworkLog.CurrentLogLevel <= LogLevel.Normal)
                     {
-                        NetworkLog.LogWarning($"{nameof(NetworkConstants.NETWORK_VARIABLE_DELTA)} message received for a non-existent object with {nameof(networkObjectId)}: {networkObjectId}. This delta was lost.");
+                        NetworkLog.LogWarning($"Network variable delta message received for a non-existent object with {nameof(networkObjectId)}: {networkObjectId}. This delta was lost.");
                     }
-                }
-                else
-                {
-                    if (NetworkLog.CurrentLogLevel <= LogLevel.Developer)
-                    {
-                        NetworkLog.LogWarning($"{nameof(NetworkConstants.NETWORK_VARIABLE_DELTA)} message received for a non-existent object with {nameof(networkObjectId)}: {networkObjectId}. This delta will be buffered and might be recovered.");
-                    }
-
-                    bufferCallback(networkObjectId, bufferPreset);
                 }
             }
         }
@@ -341,18 +318,53 @@ namespace MLAPI.Messaging
         /// <param name="clientId"></param>
         /// <param name="stream"></param>
         /// <param name="receiveTime"></param>
-        public void RpcReceiveQueueItem(ulong clientId, Stream stream, float receiveTime, RpcQueueContainer.QueueItemType queueItemType)
+        public void MessageReceiveQueueItem(ulong clientId, Stream stream, float receiveTime, MessageQueueContainer.MessageType messageType, NetworkChannel receiveChannel)
         {
             if (NetworkManager.IsServer && clientId == NetworkManager.ServerClientId)
             {
                 return;
             }
 
-            ProfilerStatManager.RpcsRcvd.Record();
-            PerformanceDataManager.Increment(ProfilerConstants.RpcReceived);
+            if (stream == null)
+            {
+                if (NetworkLog.CurrentLogLevel <= LogLevel.Error)
+                {
+                    NetworkLog.LogError("Message unwrap could not be completed. Was the header corrupt?");
+                }
 
-            var rpcQueueContainer = NetworkManager.RpcQueueContainer;
-            rpcQueueContainer.AddQueueItemToInboundFrame(queueItemType, receiveTime, clientId, (NetworkBuffer)stream);
+                return;
+            }
+
+            if (messageType == MessageQueueContainer.MessageType.None)
+            {
+                if (NetworkLog.CurrentLogLevel <= LogLevel.Error)
+                {
+                    NetworkLog.LogError($"Message header contained an invalid type: {((int)messageType).ToString()}");
+                }
+
+                return;
+            }
+
+            if (NetworkLog.CurrentLogLevel <= LogLevel.Developer)
+            {
+                NetworkLog.LogInfo($"Data Header: {nameof(messageType)}={((int)messageType).ToString()}");
+            }
+
+            if (NetworkManager.PendingClients.TryGetValue(clientId, out PendingClient client) && (client.ConnectionState == PendingClient.State.PendingApproval || client.ConnectionState == PendingClient.State.PendingConnection && messageType != MessageQueueContainer.MessageType.ConnectionRequest))
+            {
+                if (NetworkLog.CurrentLogLevel <= LogLevel.Normal)
+                {
+                    NetworkLog.LogWarning($"Message received from {nameof(clientId)}={clientId.ToString()} before it has been accepted");
+                }
+
+                return;
+            }
+
+            ProfilerStatManager.MessagesRcvd.Record();
+            PerformanceDataManager.Increment(ProfilerConstants.MessagesReceived);
+
+            var messageQueueContainer = NetworkManager.MessageQueueContainer;
+            messageQueueContainer.AddQueueItemToInboundFrame(messageType, receiveTime, clientId, (NetworkBuffer)stream, receiveChannel);
         }
 
         public void HandleUnnamedMessage(ulong clientId, Stream stream)

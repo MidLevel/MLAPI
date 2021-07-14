@@ -1,6 +1,7 @@
 using System.Collections.Generic;
 using MLAPI.Collections;
 using MLAPI.Configuration;
+using MLAPI.Messaging;
 using MLAPI.Transports;
 using UnityEngine;
 
@@ -141,7 +142,7 @@ namespace MLAPI.Profiling
             s_CurrentTick = null;
         }
 
-        internal static void StartEvent(TickType eventType, uint bytes, NetworkChannel networkChannel, byte messageType)
+        internal static void StartEvent(TickType eventType, uint bytes, NetworkChannel networkChannel, MessageQueueContainer.MessageType messageType)
         {
             if (!IsRunning)
             {
@@ -153,7 +154,7 @@ namespace MLAPI.Profiling
                 return;
             }
 
-            string messageName = messageType < NetworkConstants.MESSAGE_NAMES.Length ? NetworkConstants.MESSAGE_NAMES[messageType] : "INVALID_MESSAGE_TYPE";
+            string messageName = messageType.ToString();
 
             string channelName = networkChannel.ToString();
             s_CurrentTick.StartEvent(eventType, bytes, channelName, messageName);

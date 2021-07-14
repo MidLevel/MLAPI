@@ -1,7 +1,6 @@
-using System;
 using System.IO;
 using MLAPI.Messaging;
-using MLAPI.Messaging.Buffering;
+using MLAPI.Transports;
 using Unity.Profiling;
 
 namespace MLAPI.Profiling
@@ -22,8 +21,9 @@ namespace MLAPI.Profiling
         private readonly ProfilerMarker m_HandleUnnamedMessage = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleUnnamedMessage)}");
         private readonly ProfilerMarker m_HandleNamedMessage = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleNamedMessage)}");
         private readonly ProfilerMarker m_HandleNetworkLog = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleNetworkLog)}");
-        private readonly ProfilerMarker m_RpcReceiveQueueItemServerRpc = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(RpcReceiveQueueItem)}.{nameof(RpcQueueContainer.QueueItemType.ServerRpc)}");
-        private readonly ProfilerMarker m_RpcReceiveQueueItemClientRpc = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(RpcReceiveQueueItem)}.{nameof(RpcQueueContainer.QueueItemType.ClientRpc)}");
+        private readonly ProfilerMarker m_MessageReceiveQueueItemServerRpc = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(MessageReceiveQueueItem)}.{nameof(MessageQueueContainer.MessageType.ServerRpc)}");
+        private readonly ProfilerMarker m_MessageReceiveQueueItemClientRpc = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(MessageReceiveQueueItem)}.{nameof(MessageQueueContainer.MessageType.ClientRpc)}");
+        private readonly ProfilerMarker m_MessageReceiveQueueItemInternalMessage = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(MessageReceiveQueueItem)}.InternalMessage");
         private readonly ProfilerMarker m_HandleAllClientsSwitchSceneCompleted = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleAllClientsSwitchSceneCompleted)}");
 
         private readonly IInternalMessageHandler m_MessageHandler;
@@ -125,36 +125,42 @@ namespace MLAPI.Profiling
             m_HandleTimeSync.End();
         }
 
-        public void HandleNetworkVariableDelta(ulong clientId, Stream stream, Action<ulong, PreBufferPreset> bufferCallback, PreBufferPreset bufferPreset)
+        public void HandleNetworkVariableDelta(ulong clientId, Stream stream)
         {
             m_HandleNetworkVariableDelta.Begin();
 
-            m_MessageHandler.HandleNetworkVariableDelta(clientId, stream, bufferCallback, bufferPreset);
+            m_MessageHandler.HandleNetworkVariableDelta(clientId, stream);
 
             m_HandleNetworkVariableDelta.End();
         }
 
-        public void RpcReceiveQueueItem(ulong clientId, Stream stream, float receiveTime, RpcQueueContainer.QueueItemType queueItemType)
+        public void MessageReceiveQueueItem(ulong clientId, Stream stream, float receiveTime, MessageQueueContainer.MessageType messageType, NetworkChannel receiveChannel)
         {
-            switch (queueItemType)
+            switch (messageType)
             {
-                case RpcQueueContainer.QueueItemType.ServerRpc:
-                    m_RpcReceiveQueueItemServerRpc.Begin();
+                case MessageQueueContainer.MessageType.ServerRpc:
+                    m_MessageReceiveQueueItemServerRpc.Begin();
                     break;
-                case RpcQueueContainer.QueueItemType.ClientRpc:
-                    m_RpcReceiveQueueItemClientRpc.Begin();
+                case MessageQueueContainer.MessageType.ClientRpc:
+                    m_MessageReceiveQueueItemClientRpc.Begin();
+                    break;
+                default:
+                    m_MessageReceiveQueueItemInternalMessage.Begin();
                     break;
             }
 
-            m_MessageHandler.RpcReceiveQueueItem(clientId, stream, receiveTime, queueItemType);
+            m_MessageHandler.MessageReceiveQueueItem(clientId, stream, receiveTime, messageType, receiveChannel);
 
-            switch (queueItemType)
+            switch (messageType)
             {
-                case RpcQueueContainer.QueueItemType.ServerRpc:
-                    m_RpcReceiveQueueItemServerRpc.End();
+                case MessageQueueContainer.MessageType.ServerRpc:
+                    m_MessageReceiveQueueItemServerRpc.End();
                     break;
-                case RpcQueueContainer.QueueItemType.ClientRpc:
-                    m_RpcReceiveQueueItemClientRpc.End();
+                case MessageQueueContainer.MessageType.ClientRpc:
+                    m_MessageReceiveQueueItemClientRpc.End();
+                    break;
+                default:
+                    m_MessageReceiveQueueItemInternalMessage.End();
                     break;
             }
         }

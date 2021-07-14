@@ -14,13 +14,13 @@ namespace MLAPI.Profiling
         public static readonly ProfilerStat NamedMessage = new ProfilerStat("Named Message");
         public static readonly ProfilerStat UnnamedMessage = new ProfilerStat("UnNamed Message");
 
-        public static readonly ProfilerStat RpcsRcvd = new ProfilerStat("RPCs Rcvd");
-        public static readonly ProfilerStat RpcsSent = new ProfilerStat("RPCs Sent");
-        public static readonly ProfilerStat RpcBatchesRcvd = new ProfilerStat("RPC Batches Rcvd");
-        public static readonly ProfilerStat RpcBatchesSent = new ProfilerStat("RPC Batches Sent");
-        public static readonly ProfilerStat RpcsQueueProc = new ProfilerStat("RPCS-Processed");
-        public static readonly ProfilerStat RpcInQueueSize = new ProfilerStat("InQFrameSize");
-        public static readonly ProfilerStat RpcOutQueueSize = new ProfilerStat("OutQFrameSize");
+        public static readonly ProfilerStat MessagesRcvd = new ProfilerStat("Messages Rcvd");
+        public static readonly ProfilerStat MessagesSent = new ProfilerStat("Messages Sent");
+        public static readonly ProfilerStat MessageBatchesRcvd = new ProfilerStat("Message Batches Rcvd");
+        public static readonly ProfilerStat MessageBatchesSent = new ProfilerStat("Message Batches Sent");
+        public static readonly ProfilerStat MessagesQueueProc = new ProfilerStat("Messages-Processed");
+        public static readonly ProfilerStat MessageInQueueSize = new ProfilerStat("InQFrameSize");
+        public static readonly ProfilerStat MessageOutQueueSize = new ProfilerStat("OutQFrameSize");
         public static readonly ProfilerIncStat NetTranforms = new ProfilerIncStat("NetTransforms");
 
 

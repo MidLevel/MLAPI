@@ -7,10 +7,11 @@ using MLAPI.Serialization;
 using MLAPI.Configuration;
 using MLAPI.Profiling;
 using MLAPI.Transports;
+using UnityEngine;
 
 namespace MLAPI.Messaging
 {
-    internal class RpcBatcher
+    internal class MessageBatcher
     {
         public class SendStream
         {
@@ -29,13 +30,23 @@ namespace MLAPI.Messaging
         // Stores the stream of batched RPC to send to each client, by ClientId
         private readonly Dictionary<ulong, SendStream> m_SendDict = new Dictionary<ulong, SendStream>();
 
+        public void Shutdown()
+        {
+            foreach (var kvp in m_SendDict)
+            {
+                kvp.Value.Writer.Dispose();
+                kvp.Value.Buffer.Dispose();
+            }
+            m_SendDict.Clear();
+        }
+
         // Used to store targets, internally
         private ulong[] m_TargetList = new ulong[0];
 
         // Used to mark longer lengths. Works because we can't have zero-sized messages
         private const byte k_LongLenMarker = 0;
 
-        private void PushLength(int length, ref PooledNetworkWriter writer)
+        internal static void PushLength(int length, ref PooledNetworkWriter writer)
         {
             // If length is single byte we write it
             if (length < 256)
@@ -83,22 +94,22 @@ namespace MLAPI.Messaging
         /// FillTargetList
         /// Fills a list with the ClientId's an item is targeted to
         /// </summary>
-        /// <param name="queueItem">the FrameQueueItem we want targets for</param>
+        /// <param name="item">the FrameQueueItem we want targets for</param>
         /// <param name="networkIdList">the list to fill</param>
-        private static void FillTargetList(in RpcFrameQueueItem queueItem, ref ulong[] networkIdList)
+        private static void FillTargetList(in MessageFrameItem item, ref ulong[] networkIdList)
         {
-            switch (queueItem.QueueItemType)
+            switch (item.MessageType)
             {
                 // todo: revisit .resize() and .ToArry() usage, for performance
-                case RpcQueueContainer.QueueItemType.ServerRpc:
+                case MessageQueueContainer.MessageType.ServerRpc:
                     Array.Resize(ref networkIdList, 1);
-                    networkIdList[0] = queueItem.NetworkId;
+                    networkIdList[0] = item.NetworkId;
                     break;
                 default:
                 // todo: consider the implications of default usage of queueItem.clientIds
-                case RpcQueueContainer.QueueItemType.ClientRpc:
+                case MessageQueueContainer.MessageType.ClientRpc:
                     // copy the list
-                    networkIdList = queueItem.ClientNetworkIds.ToArray();
+                    networkIdList = item.ClientNetworkIds.ToArray();
                     break;
             }
         }
@@ -107,10 +118,10 @@ namespace MLAPI.Messaging
         /// QueueItem
         /// Add a FrameQueueItem to be sent
         /// </summary>queueItem
-        /// <param name="queueItem">the threshold in bytes</param>
-        public void QueueItem(in RpcFrameQueueItem queueItem)
+        /// <param name="item">the threshold in bytes</param>
+        public void QueueItem(in MessageFrameItem item)
         {
-            FillTargetList(queueItem, ref m_TargetList);
+            FillTargetList(item, ref m_TargetList);
 
             foreach (ulong clientId in m_TargetList)
             {
@@ -126,40 +137,29 @@ namespace MLAPI.Messaging
                 if (sendStream.IsEmpty)
                 {
                     sendStream.IsEmpty = false;
-                    sendStream.NetworkChannel = queueItem.NetworkChannel;
-
-                    switch (queueItem.QueueItemType)
-                    {
-                        // 8 bits are used for the message type, which is an NetworkConstants
-                        case RpcQueueContainer.QueueItemType.ServerRpc:
-                            sendStream.Writer.WriteByte(NetworkConstants.SERVER_RPC); // MessageType
-                            break;
-                        case RpcQueueContainer.QueueItemType.ClientRpc:
-                            sendStream.Writer.WriteByte(NetworkConstants.CLIENT_RPC); // MessageType
-                            break;
-                    }
+                    sendStream.NetworkChannel = item.NetworkChannel;
                 }
 
                 // write the amounts of bytes that are coming up
-                PushLength(queueItem.MessageData.Count, ref sendStream.Writer);
+                PushLength(item.MessageData.Count, ref sendStream.Writer);
 
                 // write the message to send
-                sendStream.Writer.WriteBytes(queueItem.MessageData.Array, queueItem.MessageData.Count, queueItem.MessageData.Offset);
+                sendStream.Writer.WriteBytes(item.MessageData.Array, item.MessageData.Count, item.MessageData.Offset);
 
-                ProfilerStatManager.BytesSent.Record(queueItem.MessageData.Count);
-                ProfilerStatManager.RpcsSent.Record();
-                PerformanceDataManager.Increment(ProfilerConstants.ByteSent, queueItem.MessageData.Count);
-                PerformanceDataManager.Increment(ProfilerConstants.RpcSent);
+                ProfilerStatManager.BytesSent.Record(item.MessageData.Count);
+                ProfilerStatManager.MessagesSent.Record();
+                PerformanceDataManager.Increment(ProfilerConstants.ByteSent, item.MessageData.Count);
+                PerformanceDataManager.Increment(ProfilerConstants.MessagesSent);
             }
         }
 
         public delegate void SendCallbackType(ulong clientId, SendStream messageStream);
 
-        public delegate void ReceiveCallbackType(NetworkBuffer messageStream, RpcQueueContainer.QueueItemType messageType, ulong clientId, float receiveTime);
+        public delegate void ReceiveCallbackType(NetworkBuffer messageStream, MessageQueueContainer.MessageType messageType, ulong clientId, float receiveTime, NetworkChannel receiveChannel);
 
         /// <summary>
         /// SendItems
-        /// Send any batch of RPC that are of length above threshold
+        /// Send any batch of messages that are of length above threshold
         /// </summary>
         /// <param name="thresholdBytes"> the threshold in bytes</param>
         /// <param name="sendCallback"> the function to call for sending the batch</param>
@@ -179,8 +179,8 @@ namespace MLAPI.Messaging
                         entry.Value.Buffer.SetLength(0);
                         entry.Value.Buffer.Position = 0;
                         entry.Value.IsEmpty = true;
-                        ProfilerStatManager.RpcBatchesSent.Record();
-                        PerformanceDataManager.Increment(ProfilerConstants.RpcBatchesSent);
+                        ProfilerStatManager.MessageBatchesSent.Record();
+                        PerformanceDataManager.Increment(ProfilerConstants.MessageBatchesSent);
                     }
                 }
             }
@@ -188,22 +188,22 @@ namespace MLAPI.Messaging
 
         /// <summary>
         /// ReceiveItems
-        /// Process the messageStream and call the callback with individual RPC messages
+        /// Process the messageStream and call the callback with individual messages
         /// </summary>
-        /// <param name="messageBuffer"> the messageStream containing the batched RPC</param>
+        /// <param name="messageBuffer"> the messageStream containing the batched messages</param>
         /// <param name="receiveCallback"> the callback to call has type int f(message, type, clientId, time) </param>
         /// <param name="messageType"> the message type to pass back to callback</param>
         /// <param name="clientId"> the clientId to pass back to callback</param>
         /// <param name="receiveTime"> the packet receive time to pass back to callback</param>
-        public void ReceiveItems(in NetworkBuffer messageBuffer, ReceiveCallbackType receiveCallback, RpcQueueContainer.QueueItemType messageType, ulong clientId, float receiveTime)
+        public void ReceiveItems(in NetworkBuffer messageBuffer, ReceiveCallbackType receiveCallback, ulong clientId, float receiveTime, NetworkChannel receiveChannel)
         {
             using (var copy = PooledNetworkBuffer.Get())
             {
                 do
                 {
-                    // read the length of the next RPC
-                    int rpcSize = PopLength(messageBuffer);
-                    if (rpcSize < 0)
+                    // read the length of the next message
+                    int messageSize = PopLength(messageBuffer);
+                    if (messageSize < 0)
                     {
                         // abort if there's an error reading lengths
                         return;
@@ -211,15 +211,16 @@ namespace MLAPI.Messaging
 
                     // copy what comes after current stream position
                     long position = messageBuffer.Position;
-                    copy.SetLength(rpcSize);
+                    copy.SetLength(messageSize);
                     copy.Position = 0;
-                    Buffer.BlockCopy(messageBuffer.GetBuffer(), (int)position, copy.GetBuffer(), 0, rpcSize);
+                    Buffer.BlockCopy(messageBuffer.GetBuffer(), (int)position, copy.GetBuffer(), 0, messageSize);
 
-                    receiveCallback(copy, messageType, clientId, receiveTime);
+                    var messageType = (MessageQueueContainer.MessageType)copy.ReadByte();
+                    receiveCallback(copy, messageType, clientId, receiveTime, receiveChannel);
 
-                    // seek over the RPC
-                    // RPCReceiveQueueItem peeks at content, it doesn't advance
-                    messageBuffer.Seek(rpcSize, SeekOrigin.Current);
+                    // seek over the message
+                    // MessageReceiveQueueItem peeks at content, it doesn't advance
+                    messageBuffer.Seek(messageSize, SeekOrigin.Current);
                 } while (messageBuffer.Position < messageBuffer.Length);
             }
         }

@@ -1,5 +1,6 @@
 using MLAPI.Messaging;
 using MLAPI.Profiling;
+using MLAPI.Transports;
 using NUnit.Framework;
 using UnityEngine;
 using UnityEngine.TestTools;
@@ -13,7 +14,7 @@ namespace MLAPI.EditorTests.Profiling
         [SetUp]
         public void Setup()
         {
-            m_Decorator = new InternalMessageHandlerProfilingDecorator(new DummyMessageHandler());
+            m_Decorator = new InternalMessageHandlerProfilingDecorator(new DummyMessageHandler(null));
         }
 
         [Test]
@@ -99,7 +100,7 @@ namespace MLAPI.EditorTests.Profiling
         [Test]
         public void HandleNetworkVariableDeltaCallsUnderlyingHandler()
         {
-            m_Decorator.HandleNetworkVariableDelta(0, null, null, default);
+            m_Decorator.HandleNetworkVariableDelta(0, null);
 
             LogAssert.Expect(LogType.Log, nameof(m_Decorator.HandleNetworkVariableDelta));
         }
@@ -129,11 +130,11 @@ namespace MLAPI.EditorTests.Profiling
         }
 
         [Test]
-        public void RpcReceiveQueueItemCallsUnderlyingHandler()
+        public void MessageReceiveQueueItemCallsUnderlyingHandler()
         {
-            m_Decorator.RpcReceiveQueueItem(0, null, 0.0f, RpcQueueContainer.QueueItemType.None);
+            m_Decorator.MessageReceiveQueueItem(0, null, 0.0f, MessageQueueContainer.MessageType.None, NetworkChannel.Internal);
 
-            LogAssert.Expect(LogType.Log, nameof(m_Decorator.RpcReceiveQueueItem));
+            LogAssert.Expect(LogType.Log, nameof(m_Decorator.MessageReceiveQueueItem));
         }
 
         [Test]

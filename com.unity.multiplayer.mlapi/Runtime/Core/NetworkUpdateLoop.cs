@@ -19,13 +19,14 @@ namespace MLAPI
     /// </summary>
     public enum NetworkUpdateStage : byte
     {
+        Unset = 0, // Default
         Initialization = 1,
         EarlyUpdate = 2,
         FixedUpdate = 3,
         PreUpdate = 4,
-        Update = 0, // Default
-        PreLateUpdate = 5,
-        PostLateUpdate = 6
+        Update = 5,
+        PreLateUpdate = 6,
+        PostLateUpdate = 7
     }
 
     /// <summary>

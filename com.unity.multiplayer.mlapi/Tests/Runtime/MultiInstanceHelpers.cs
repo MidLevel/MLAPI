@@ -114,9 +114,17 @@ namespace MLAPI.RuntimeTests
             // Shutdown the server which forces clients to disconnect
             foreach (var networkManager in s_NetworkManagerInstances)
             {
-                if (networkManager.IsServer)
+                if (networkManager.IsHost)
                 {
                     networkManager.StopHost();
+                }
+                else if (networkManager.IsServer)
+                {
+                    networkManager.StopServer();
+                }
+                else if (networkManager.IsClient)
+                {
+                    networkManager.StopClient();
                 }
             }
 
@@ -302,9 +310,12 @@ namespace MLAPI.RuntimeTests
             }
             else
             {
-                foreach (var client in clients)
+                for (var i = 0; i < clients.Length; ++i)
                 {
-                    Assert.True(client.IsConnectedClient, $"Client {client.LocalClientId} never connected");
+                    var client = clients[i];
+                    // Logging i+1 because that's the local client ID they'll get (0 is server)
+                    // Can't use client.LocalClientId because that doesn't get assigned until IsConnectedClient == true,
+                    Assert.True(client.IsConnectedClient, $"Client {i+1} never connected");
                 }
             }
         }

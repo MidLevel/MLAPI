@@ -42,6 +42,15 @@ namespace MLAPI.Serialization
         }
 
         /// <summary>
+        /// Retrieves the underlying stream the reader is reading from
+        /// </summary>
+        /// <returns></returns>
+        public Stream GetStream()
+        {
+            return m_Source;
+        }
+
+        /// <summary>
         /// Reads a single byte
         /// </summary>
         /// <returns>The byte read as an integer</returns>

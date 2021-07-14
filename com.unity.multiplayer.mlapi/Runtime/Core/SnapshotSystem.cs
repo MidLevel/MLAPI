@@ -183,14 +183,22 @@ namespace MLAPI
         private void SendSnapshot(ulong clientId)
         {
             // Send the entry index and the buffer where the variables are serialized
-            using (var buffer = PooledNetworkBuffer.Get())
-            {
-                WriteIndex(buffer);
-                WriteBuffer(buffer);
 
-                m_NetworkManager.MessageSender.Send(clientId, NetworkConstants.SNAPSHOT_DATA,
-                    NetworkChannel.SnapshotExchange, buffer);
-                buffer.Dispose();
+            var context = m_NetworkManager.MessageQueueContainer.EnterInternalCommandContext(
+                MessageQueueContainer.MessageType.SnapshotData,
+                NetworkChannel.SnapshotExchange,
+                new[] {clientId},
+                NetworkUpdateLoop.UpdateStage
+            );
+
+            if (context != null)
+            {
+                using (var icontext = (InternalCommandContext) context)
+                {
+                    var buffer = (NetworkBuffer)icontext.NetworkWriter.GetStream();
+                    WriteIndex(buffer);
+                    WriteBuffer(buffer);
+                }
             }
         }
 

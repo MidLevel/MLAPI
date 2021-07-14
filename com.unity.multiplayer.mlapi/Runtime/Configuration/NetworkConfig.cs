@@ -167,12 +167,6 @@ namespace MLAPI.Configuration
         public int LoadSceneTimeOut = 120;
 
         /// <summary>
-        /// Whether or not message buffering should be enabled. This will resolve most out of order messages during spawn.
-        /// </summary>
-        [Tooltip("Whether or not message buffering should be enabled. This will resolve most out of order messages during spawn")]
-        public bool EnableMessageBuffering = true;
-
-        /// <summary>
         /// The amount of time a message should be buffered for without being consumed. If it is not consumed within this time, it will be dropped.
         /// </summary>
         [Tooltip("The amount of time a message should be buffered for without being consumed. If it is not consumed within this time, it will be dropped")]
