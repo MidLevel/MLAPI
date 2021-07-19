@@ -169,6 +169,7 @@ namespace MLAPI.SceneManagement
                 return null;
             }
 
+            m_NetworkManager.SpawnManager.SaveDontDestroyOnLoadObjects(); // Save all DontDestroyOnLoad objects
             m_NetworkManager.SpawnManager.ServerDestroySpawnedSceneObjects(); //Destroy current scene objects before switching.
             s_IsSwitching = true;
             s_LastScene = SceneManager.GetActiveScene();
@@ -332,6 +333,9 @@ namespace MLAPI.SceneManagement
             {
                 OnClientLoadedScene(switchSceneGuid, objectStream);
             }
+
+            // Load all DontDestroyOnLoad objects
+            m_NetworkManager.SpawnManager.LoadDontDestroyOnLoadObjects();
         }
 
         private void OnServerLoadedScene(Guid switchSceneGuid)

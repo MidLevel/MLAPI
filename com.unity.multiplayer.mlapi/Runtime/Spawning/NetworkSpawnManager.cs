@@ -30,6 +30,10 @@ namespace MLAPI.Spawning
         /// </summary>
         public readonly HashSet<NetworkObject> SpawnedObjectsList = new HashSet<NetworkObject>();
 
+        /// <summary>
+        /// A list of DontDestoryOnLoad objects
+        /// </summary>
+        internal static readonly HashSet<NetworkObject> DontDestoryOnLoadObjects = new HashSet<NetworkObject>();
 
         /// <summary>
         /// Gets the NetworkManager associated with this SpawnManager.
@@ -488,6 +492,8 @@ namespace MLAPI.Spawning
 
             foreach (var sobj in spawnedObjects)
             {
+                // skip DontDestoryOnLoad objects, such that they are moved to new scene
+                if (sobj.gameObject.scene.buildIndex == -1) continue;
                 if ((sobj.IsSceneObject != null && sobj.IsSceneObject == true) || sobj.DestroyWithScene)
                 {
                     // This **needs** to be here until we overhaul NetworkSceneManager due to dependencies
@@ -556,6 +562,29 @@ namespace MLAPI.Spawning
             }
         }
 
+
+        internal static void SaveDontDestroyOnLoadObjects()
+        {
+            var spawnedObjects = SpawnedObjectsList.ToList();
+            foreach (var sobj in spawnedObjects)
+            {
+                if (sobj.gameObject.scene.buildIndex == -1)
+                {
+                    DontDestoryOnLoadObjects.Add(sobj);
+                }
+            }
+        }
+
+
+        internal static void LoadDontDestroyOnLoadObjects()
+        {
+            var dontDestroyOnLoadObjects = DontDestoryOnLoadObjects.ToList();
+            foreach (var dobj in dontDestroyOnLoadObjects)
+            {
+                GameObject.DontDestroyOnLoad(dobj.gameObject);
+            }
+            DontDestoryOnLoadObjects.Clear();
+        }
 
         internal void ServerSpawnSceneObjectsOnStartSweep()
         {
