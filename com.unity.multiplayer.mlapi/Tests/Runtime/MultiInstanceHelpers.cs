@@ -140,10 +140,10 @@ namespace MLAPI.RuntimeTests
         /// <summary>
         /// Starts NetworkManager instances created by the Create method.
         /// </summary>
-        /// <param name="host">Whether or not to create a Host instead of Server</param>
+        /// <param name="isHost">Whether or not to create a Host instead of Server</param>
         /// <param name="server">The Server NetworkManager</param>
         /// <param name="clients">The Clients NetworkManager</param>
-        public static bool Start(bool host, NetworkManager server, NetworkManager[] clients)
+        public static bool Start(bool isHost, NetworkManager server, NetworkManager[] clients)
         {
             if (s_IsStarted)
             {
@@ -153,7 +153,7 @@ namespace MLAPI.RuntimeTests
             s_IsStarted = true;
             s_ClientCount = clients.Length;
 
-            if (host)
+            if (isHost)
             {
                 server.StartHost();
             }
