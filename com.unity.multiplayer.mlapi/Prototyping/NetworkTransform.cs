@@ -11,24 +11,13 @@ namespace MLAPI.Prototyping
     [AddComponentMenu("MLAPI/NetworkTransform")]
     public class NetworkTransform : NetworkBehaviour
     {
-        /// <summary>
-        /// Server authority only allows the server to update this transform
-        /// Client authority only allows the client owner to update this transform
-        /// Shared authority allows everyone to update this transform
-        /// </summary>
-        public enum Authority
-        {
-            Server = 0, // default
-            Client,
-            Shared
-        }
 
         /// <summary>
         /// TODO this will need refactoring
         /// Specifies who can update this transform
         /// </summary>
         [SerializeField, Tooltip("Defines who can update this transform.")]
-        public Authority TransformAuthority = Authority.Server; // todo Luke mentioned an incoming system to manage this at the NetworkBehaviour level, lets sync on this
+        private Authority m_TransformAuthority = Authority.Server; // todo Luke mentioned an incoming system to manage this at the NetworkBehaviour level, lets sync on this
 
         /// <summary>
         /// The base amount of sends per seconds to use when range is disabled
@@ -101,40 +90,24 @@ namespace MLAPI.Prototyping
         }
 
         /// <summary>
-        /// Updates the NetworkTransform's authority model at runtime.
+        /// Updates the NetworkTransform's authority model at runtime. Internal use for testing only.
+        /// Has to be called on all peers before the NetworkObject gets spawned and can't be changed at runtime.
         /// </summary>
         /// <param name="newAuthority"></param>
-        public void SetAuthority(Authority newAuthority)
+        internal void SetAuthority(Authority newAuthority)
         {
-            TransformAuthority = newAuthority;
+            m_TransformAuthority = newAuthority;
             UpdateVarPermissions();
             // todo this should be synced with the other side. let's wait for a more final solution before adding more code here
         }
-
-        private void UpdateOneVarPermission<T>(NetworkVariable<T> varToUpdate)
-        {
-            switch (TransformAuthority)
-            {
-                case Authority.Client:
-                    varToUpdate.Settings.WritePermission = NetworkVariablePermission.OwnerOnly;
-                    break;
-                case Authority.Shared:
-                    varToUpdate.Settings.WritePermission = NetworkVariablePermission.Everyone;
-                    break;
-                case Authority.Server:
-                    m_NetworkPosition.Settings.WritePermission = NetworkVariablePermission.ServerOnly;
-                    break;
-                default:
-                    throw new NotImplementedException($"{TransformAuthority} is not handled");
-            }
-        }
+        public Authority TransformAuthority => m_TransformAuthority;
 
         private void UpdateVarPermissions()
         {
-            UpdateOneVarPermission(m_NetworkPosition);
-            UpdateOneVarPermission(m_NetworkRotation);
-            UpdateOneVarPermission(m_NetworkWorldScale);
-            UpdateOneVarPermission(m_UseLocal);
+            m_NetworkPosition.UpdateStateVariablePermission(m_TransformAuthority);
+            m_NetworkRotation.UpdateStateVariablePermission(m_TransformAuthority);
+            m_NetworkWorldScale.UpdateStateVariablePermission(m_TransformAuthority);
+            m_UseLocal.UpdateStateVariablePermission(m_TransformAuthority);
         }
 
         private NetworkVariableVector3 m_NetworkPosition = new NetworkVariableVector3();
@@ -207,10 +180,6 @@ namespace MLAPI.Prototyping
             m_Transform.localScale = new Vector3(globalScale.x / lossyScale.x, globalScale.y / lossyScale.y, globalScale.z / lossyScale.z);
         }
 
-        public bool CanUpdateTransform()
-        {
-            return (IsClient && TransformAuthority == Authority.Client && IsOwner) || (IsServer && TransformAuthority == Authority.Server) || TransformAuthority == Authority.Shared;
-        }
 
         private void Awake()
         {
@@ -223,7 +192,7 @@ namespace MLAPI.Prototyping
             {
                 v.Settings.SendTickrate = FixedSendsPerSecond;
                 v.Settings.SendNetworkChannel = Channel;
-                if (CanUpdateTransform())
+                if (this.HasAuthority(m_TransformAuthority))
                 {
                     v.Value = initialValue;
                 }
@@ -246,7 +215,7 @@ namespace MLAPI.Prototyping
         {
             return (old, current) =>
             {
-                if (TransformAuthority == Authority.Client && IsClient && IsOwner)
+                if (m_TransformAuthority == Authority.Owner && IsClient && IsOwner)
                 {
                     // this should only happen for my own value changes.
                     // todo MTT-768 this shouldn't happen anymore with new tick system (tick written will be higher than tick read, so netvar wouldn't change in that case
@@ -297,7 +266,7 @@ namespace MLAPI.Prototyping
                 return;
             }
 
-            if (CanUpdateTransform())
+            if (this.HasAuthority(m_TransformAuthority))
             {
                 m_NetworkPosition.Value = m_CurrentPosition;
                 m_NetworkRotation.Value = m_CurrentRotation;

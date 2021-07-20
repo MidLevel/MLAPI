@@ -46,24 +46,24 @@ namespace MLAPI.RuntimeTests
         }
 
         [UnityTest]
-        [TestCase(true, Authority.Client, ExpectedResult = null)]
+        [TestCase(true, Authority.Owner, ExpectedResult = null)]
         [TestCase(true, Authority.Server, ExpectedResult = null)]
-        [TestCase(false, Authority.Client, ExpectedResult = null)]
+        [TestCase(false, Authority.Owner, ExpectedResult = null)]
         [TestCase(false, Authority.Server, ExpectedResult = null)]
         public IEnumerator TestAuthoritativeTransformChangeOneAtATime(bool testLocalTransform, Authority authorityToTest)
         {
             var waitResult = new MultiInstanceHelpers.CoroutineResultWrapper<bool>();
 
-            var networkTransform = (authorityToTest == Authority.Client ? m_ClientSideClientPlayer : m_ServerSideClientPlayer).GetComponent<NetworkTransform>();
+            var networkTransform = (authorityToTest == Authority.Owner ? m_ClientSideClientPlayer : m_ServerSideClientPlayer).GetComponent<NetworkTransform>();
             networkTransform.SetAuthority(authorityToTest);
 
-            var otherSideNetworkTransform = (authorityToTest == Authority.Client ? m_ServerSideClientPlayer : m_ClientSideClientPlayer).GetComponent<NetworkTransform>();
+            var otherSideNetworkTransform = (authorityToTest == Authority.Owner ? m_ServerSideClientPlayer : m_ClientSideClientPlayer).GetComponent<NetworkTransform>();
             otherSideNetworkTransform.SetAuthority(authorityToTest);
 
             bool HasAuthority(NetworkTransform transform)
             {
                 return transform.NetworkObject.NetworkManager.IsServer && transform.TransformAuthority == Authority.Server ||
-                    transform.NetworkObject.NetworkManager.IsClient && transform.TransformAuthority == Authority.Client;
+                    transform.NetworkObject.NetworkManager.IsClient && transform.TransformAuthority == Authority.Owner;
             }
 
             if (HasAuthority(networkTransform))
@@ -121,15 +121,15 @@ namespace MLAPI.RuntimeTests
         }
 
         [UnityTest]
-        [TestCase(Authority.Client, ExpectedResult = null)]
+        [TestCase(Authority.Owner, ExpectedResult = null)]
         [TestCase(Authority.Server, ExpectedResult = null)]
         public IEnumerator TestCantChangeTransformFromOtherSideAuthority(Authority authorityToTest)
         {
             // test server can't change client authoritative transform
-            var networkTransform = (authorityToTest == Authority.Client ? m_ClientSideClientPlayer : m_ServerSideClientPlayer).GetComponent<NetworkTransform>();
+            var networkTransform = (authorityToTest == Authority.Owner ? m_ClientSideClientPlayer : m_ServerSideClientPlayer).GetComponent<NetworkTransform>();
             networkTransform.SetAuthority(authorityToTest);
 
-            var otherSideNetworkTransform = (authorityToTest == Authority.Client ? m_ServerSideClientPlayer : m_ClientSideClientPlayer).GetComponent<NetworkTransform>();
+            var otherSideNetworkTransform = (authorityToTest == Authority.Owner ? m_ServerSideClientPlayer : m_ClientSideClientPlayer).GetComponent<NetworkTransform>();
             otherSideNetworkTransform.SetAuthority(authorityToTest);
 
             Assert.AreEqual(Vector3.zero, otherSideNetworkTransform.transform.position, "other side pos should be zero at first"); // sanity check

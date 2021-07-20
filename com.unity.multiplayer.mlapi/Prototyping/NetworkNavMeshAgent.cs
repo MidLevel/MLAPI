@@ -15,6 +15,9 @@ namespace MLAPI.Prototyping
     {
         private NavMeshAgent m_Agent;
 
+        private Vector3 m_LastDestination = Vector3.zero;
+        private float m_LastCorrectionTime = 0f;
+
         /// <summary>
         /// Is proximity enabled
         /// </summary>
@@ -47,12 +50,9 @@ namespace MLAPI.Prototyping
             m_Agent = GetComponent<NavMeshAgent>();
         }
 
-        private Vector3 m_LastDestination = Vector3.zero;
-        private float m_LastCorrectionTime = 0f;
-
         private void Update()
         {
-            if (!IsOwner)
+            if (!IsServer) // TODO This currently only works with server authority because it uses ClientRPCs
             {
                 return;
             }

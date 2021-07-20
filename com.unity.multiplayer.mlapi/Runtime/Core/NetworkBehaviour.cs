@@ -219,17 +219,17 @@ namespace MLAPI
         /// <summary>
         /// Gets if we are executing as server
         /// </summary>
-        protected bool IsServer => IsRunning && NetworkManager.IsServer;
+        public bool IsServer => IsRunning && NetworkManager.IsServer;
 
         /// <summary>
         /// Gets if we are executing as client
         /// </summary>
-        protected bool IsClient => IsRunning && NetworkManager.IsClient;
+        public bool IsClient => IsRunning && NetworkManager.IsClient;
 
         /// <summary>
         /// Gets if we are executing as Host, I.E Server and Client
         /// </summary>
-        protected bool IsHost => IsRunning && NetworkManager.IsHost;
+        public bool IsHost => IsRunning && NetworkManager.IsHost;
 
         private bool IsRunning => NetworkManager != null && NetworkManager.IsListening;
 
