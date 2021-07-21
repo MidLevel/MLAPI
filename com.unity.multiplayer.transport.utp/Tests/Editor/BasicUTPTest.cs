@@ -4,6 +4,7 @@ using UnityEngine;
 using UnityEngine.TestTools;
 using NUnit.Framework;
 using Unity.Networking.Transport;
+using MLAPI.Transports;
 
 namespace MLAPI.UTP.RuntimeTests
 {

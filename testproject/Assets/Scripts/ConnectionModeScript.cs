@@ -2,6 +2,11 @@ using System;
 using System.Collections;
 using UnityEngine;
 using MLAPI;
+using MLAPI.Transports;
+#if ENABLE_RELAY_SERVICE
+using Unity.Services.Core;
+using Unity.Services.Authentication;
+#endif
 
 /// <summary>
 /// Used in tandem with the ConnectModeButtons prefab asset in test project
@@ -10,6 +15,12 @@ public class ConnectionModeScript : MonoBehaviour
 {
     [SerializeField]
     private GameObject m_ConnectionModeButtons;
+
+    [SerializeField]
+    private GameObject m_AuthenticationButtons;
+
+    [SerializeField]
+    private GameObject m_JoinCodeInput;
 
     private CommandLineProcessor m_CommandLineProcessor;
     internal void SetCommandLineHandler(CommandLineProcessor commandLineProcessor)
@@ -51,9 +62,22 @@ public class ConnectionModeScript : MonoBehaviour
     private void Start()
     {
         //If we have a NetworkManager instance and we are not listening and m_ConnectionModeButtons is not null then show the connection mode buttons
-        if (m_ConnectionModeButtons)
+        if (m_ConnectionModeButtons && m_AuthenticationButtons)
         {
-            m_ConnectionModeButtons.SetActive(NetworkManager.Singleton && !NetworkManager.Singleton.IsListening);
+#if ENABLE_RELAY_SERVICE
+            if (NetworkManager.Singleton.GetComponent<UTPTransport>().Protocol == UTPTransport.ProtocolType.RelayUnityTransport)
+            {
+                m_JoinCodeInput.SetActive(true);
+                m_ConnectionModeButtons.SetActive(false || AuthenticationService.Instance.IsSignedIn);
+                m_AuthenticationButtons.SetActive(NetworkManager.Singleton && !NetworkManager.Singleton.IsListening && !AuthenticationService.Instance.IsSignedIn);
+            }
+            else
+#endif
+            {
+                m_JoinCodeInput.SetActive(false);
+                m_AuthenticationButtons.SetActive(false);
+                m_ConnectionModeButtons.SetActive(NetworkManager.Singleton && !NetworkManager.Singleton.IsListening);
+            }
         }
     }
 
@@ -95,5 +119,23 @@ public class ConnectionModeScript : MonoBehaviour
             OnNotifyConnectionEventClient?.Invoke();
             m_ConnectionModeButtons.SetActive(false);
         }
+    }
+
+    /// <summary>
+    /// Handles autenticating UnityServices, needed for Relay
+    /// </summary>
+    public async void OnSignIn()
+    {
+#if ENABLE_RELAY_SERVICE
+        await UnityServices.Initialize();
+        await AuthenticationService.Instance.SignInAnonymouslyAsync();
+        Debug.Log($"Logging in with PlayerID {AuthenticationService.Instance.PlayerId}");
+
+        if (AuthenticationService.Instance.IsSignedIn)
+        {
+            m_ConnectionModeButtons.SetActive(true);
+            m_AuthenticationButtons.SetActive(false);
+        }
+#endif
     }
 }

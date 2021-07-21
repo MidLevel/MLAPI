@@ -2,11 +2,14 @@
   "dependencies": {
     "com.unity.collab-proxy": "1.5.7",
     "com.unity.ide.rider": "3.0.5",
-    "com.unity.ide.visualstudio": "2.0.8",
+    "com.unity.ide.visualstudio": "2.0.9",
     "com.unity.ide.vscode": "1.2.3",
     "com.unity.multiplayer.mlapi": "file:../../com.unity.multiplayer.mlapi",
     "com.unity.multiplayer.transport.utp": "file:../../com.unity.multiplayer.transport.utp",
     "com.unity.package-validation-suite": "0.19.2-preview",
+    "com.unity.services.authentication": "0.5.0-preview",
+    "com.unity.services.core": "1.1.0-pre.2",
+    "com.unity.services.relay": "0.0.1-preview.5",
     "com.unity.test-framework": "1.1.27",
     "com.unity.test-framework.performance": "2.3.1-preview",
     "com.unity.textmeshpro": "3.0.6",
@@ -47,5 +50,19 @@
   "testables": [
     "com.unity.multiplayer.mlapi",
     "com.unity.multiplayer.transport.utp"
+  ],
+  "scopedRegistries": [
+    {
+      "name": "Candidate",
+      "url": "https://artifactory.prd.cds.internal.unity3d.com/artifactory/api/npm/upm-candidates",
+      "scopes": [
+        "com.unity.transport",
+        "com.unity.collections",
+        "com.unity.services.relay",
+        "com.unity.services.authentication",
+        "com.unity.services.core",
+        "com.unity.jobs"
+      ]
+    }
   ]
 }

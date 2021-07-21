@@ -3,18 +3,26 @@
     "rootNamespace": "",
     "references": [
         "Unity.Collections",
-        "Unity.Networking.Transport",
         "Unity.Jobs",
         "Unity.Burst",
-        "Unity.Multiplayer.MLAPI.Runtime"
+        "Unity.Multiplayer.MLAPI.Runtime",
+        "Unity.Networking.Transport",
+        "Unity.Services.Relay",
+        "Unity.Services.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": true,
     "overrideReferences": false,
     "precompiledReferences": [],
-    "autoReferenced": false,
+    "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.services.relay",
+            "expression": "0.0.1-preview.3",
+            "define": "ENABLE_RELAY_SERVICE"
+        }
+    ],
     "noEngineReferences": false
 }
