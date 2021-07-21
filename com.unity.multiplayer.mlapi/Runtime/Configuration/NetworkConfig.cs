@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 using System.Linq;
 using MLAPI.Transports;
 using MLAPI.Hashing;
@@ -28,12 +32,6 @@ namespace MLAPI.Configuration
         public NetworkTransport NetworkTransport = null;
 
         /// <summary>
-        /// A list of SceneNames that can be used during networked games.
-        /// </summary>
-        [Tooltip("The Scenes that can be switched to by the server")]
-        public List<string> RegisteredScenes = new List<string>();
-
-        /// <summary>
         /// Whether or not runtime scene changes should be allowed and expected.
         /// If this is true, clients with different initial configurations will not work together.
         /// </summary>
@@ -48,7 +46,7 @@ namespace MLAPI.Configuration
         public GameObject PlayerPrefab;
 
         /// <summary>
-        /// A list of spawnable prefabs
+        /// A list of prefabs that can be dynamically spawned.
         /// </summary>
         [SerializeField]
         [Tooltip("The prefabs that can be spawned across the network")]
@@ -183,11 +181,6 @@ namespace MLAPI.Configuration
         /// </summary>
         public bool EnableNetworkLogs = true;
 
-        private void Sort()
-        {
-            RegisteredScenes.Sort(StringComparer.Ordinal);
-        }
-
         /// <summary>
         /// Returns a base64 encoded version of the configuration
         /// </summary>
@@ -199,13 +192,6 @@ namespace MLAPI.Configuration
             using (var writer = PooledNetworkWriter.Get(buffer))
             {
                 writer.WriteUInt16Packed(config.ProtocolVersion);
-                writer.WriteUInt16Packed((ushort)config.RegisteredScenes.Count);
-
-                for (int i = 0; i < config.RegisteredScenes.Count; i++)
-                {
-                    writer.WriteString(config.RegisteredScenes[i]);
-                }
-
                 writer.WriteInt32Packed(config.ReceiveTickrate);
                 writer.WriteInt32Packed(config.MaxReceiveEventsPerTickRate);
                 writer.WriteInt32Packed(config.EventTickrate);
@@ -242,12 +228,6 @@ namespace MLAPI.Configuration
                 config.ProtocolVersion = reader.ReadUInt16Packed();
 
                 ushort sceneCount = reader.ReadUInt16Packed();
-                config.RegisteredScenes.Clear();
-
-                for (int i = 0; i < sceneCount; i++)
-                {
-                    config.RegisteredScenes.Add(reader.ReadString().ToString());
-                }
 
                 config.ReceiveTickrate = reader.ReadInt32Packed();
                 config.MaxReceiveEventsPerTickRate = reader.ReadInt32Packed();
@@ -283,21 +263,11 @@ namespace MLAPI.Configuration
                 return m_ConfigHash.Value;
             }
 
-            Sort();
-
             using (var buffer = PooledNetworkBuffer.Get())
             using (var writer = PooledNetworkWriter.Get(buffer))
             {
                 writer.WriteUInt16Packed(ProtocolVersion);
                 writer.WriteString(NetworkConstants.PROTOCOL_VERSION);
-
-                if (EnableSceneManagement && !AllowRuntimeSceneChanges)
-                {
-                    for (int i = 0; i < RegisteredScenes.Count; i++)
-                    {
-                        writer.WriteString(RegisteredScenes[i]);
-                    }
-                }
 
                 if (ForceSamePrefabs)
                 {
@@ -336,3 +306,4 @@ namespace MLAPI.Configuration
         }
     }
 }
+

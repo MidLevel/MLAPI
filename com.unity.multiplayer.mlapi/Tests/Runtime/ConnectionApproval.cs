@@ -62,6 +62,7 @@ namespace MLAPI.RuntimeTests
         [TearDown]
         public void TearDown()
         {
+
             // Stop, shutdown, and destroy
             NetworkManagerHelper.ShutdownNetworkManager();
         }

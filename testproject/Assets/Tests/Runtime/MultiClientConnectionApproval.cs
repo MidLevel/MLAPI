@@ -52,6 +52,7 @@ namespace TestProject.RuntimeTests
         /// <returns></returns>
         private IEnumerator ConnectionApprovalHandler(int numClients, int failureTestCount = 1, bool prefabOverride = false)
         {
+            ScenesInBuild.IsTesting = true;
             var startFrameCount = Time.frameCount;
             var startTime = Time.realtimeSinceStartup;
 
@@ -184,6 +185,7 @@ namespace TestProject.RuntimeTests
         [TearDown]
         public void TearDown()
         {
+            ScenesInBuild.IsTesting = false;
             if (m_PlayerPrefab != null)
             {
                 Object.Destroy(m_PlayerPrefab);

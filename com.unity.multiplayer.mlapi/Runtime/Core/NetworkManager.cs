@@ -2,6 +2,10 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
+
 using MLAPI.Logging;
 using MLAPI.Configuration;
 using MLAPI.Internal;
@@ -72,6 +76,35 @@ namespace MLAPI
                 }
                 return m_PrefabHandler;
             }
+        }
+
+        /// <summary>
+        /// Returns the GameObject to use as the override as could be defined within the NetworkPrefab list
+        /// Note: This should be used to create GameObject pools (with NetworkObject components) under the
+        /// scenario where a Host is being used as the Host spawns everything locally and as such the override
+        /// will not be applied during the typical client side invocation of CreateLocalNetworkObject for the
+        /// CREATE_OBECT command.
+        /// </summary>
+        /// <param name="networkObject"></param>
+        /// <returns></returns>
+        public GameObject GetNetworkPrefabOverride(GameObject gameObject)
+        {
+            var networkObject = gameObject.GetComponent<NetworkObject>();
+            if (networkObject != null)
+            {
+                if (NetworkConfig.NetworkPrefabOverrideLinks.ContainsKey(networkObject.GlobalObjectIdHash))
+                {
+                    switch (NetworkConfig.NetworkPrefabOverrideLinks[networkObject.GlobalObjectIdHash].Override)
+                    {
+                        case NetworkPrefabOverride.Hash:
+                        case NetworkPrefabOverride.Prefab:
+                            {
+                                return NetworkConfig.NetworkPrefabOverrideLinks[networkObject.GlobalObjectIdHash].OverridingTargetPrefab;
+                            }
+                    }
+                }
+            }
+            return gameObject;
         }
 
         /// <summary>
@@ -219,20 +252,44 @@ namespace MLAPI
         [HideInInspector]
         public NetworkConfig NetworkConfig;
 
+        [HideInInspector]
+        [SerializeField]
+        internal ScenesInBuild ScenesInBuild;
+
+        [HideInInspector]
+        [SerializeField]
+        internal string DefaultScenesInBuildAssetNameAndPath = "Assets/ScenesInBuildList.asset";
         /// <summary>
-        /// The current hostname we are connected to, used to validate certificate
+        /// The current host name we are connected to, used to validate certificate
         /// </summary>
         public string ConnectedHostname { get; private set; }
 
         internal static event Action OnSingletonReady;
 
+
+
 #if UNITY_EDITOR
+        internal void PopulateScenesInBuild()
+        {
+            if (ScenesInBuild == null)
+            {
+                ScenesInBuild = ScenesInBuild.InitializeScenesInBuild(this);
+                ScenesInBuild.PopulateScenesInBuild();
+            }
+            else
+            {
+                ScenesInBuild.PopulateScenesInBuild();
+            }
+        }
+
         private void OnValidate()
         {
             if (NetworkConfig == null)
             {
                 return; // May occur when the component is added
             }
+
+            PopulateScenesInBuild();
 
             if (GetComponentInChildren<NetworkObject>() != null)
             {
@@ -243,27 +300,9 @@ namespace MLAPI
             }
 
             var activeScene = UnityEngine.SceneManagement.SceneManager.GetActiveScene();
-            var activeSceneName = activeScene.name;
-            if (!NetworkConfig.RegisteredScenes.Contains(activeSceneName))
-            {
-                if (NetworkLog.CurrentLogLevel <= LogLevel.Normal)
-                {
-                    NetworkLog.LogWarning("Active scene is not registered as a network scene. The MLAPI has added it");
-                }
-
-                NetworkConfig.RegisteredScenes.Add(activeSceneName);
-                UnityEditor.EditorApplication.delayCall += () =>
-                {
-                    if (!UnityEditor.EditorApplication.isPlaying)
-                    {
-                        UnityEditor.EditorUtility.SetDirty(this);
-                        UnityEditor.SceneManagement.EditorSceneManager.MarkSceneDirty(activeScene);
-                    }
-                };
-            }
 
             // If the scene is not dirty or the asset database is currently updating then we can skip updating the NetworkPrefab information
-            if (!activeScene.isDirty || UnityEditor.EditorApplication.isUpdating)
+            if (!activeScene.isDirty || EditorApplication.isUpdating)
             {
                 return;
             }
@@ -412,20 +451,6 @@ namespace MLAPI
             // Register INetworkUpdateSystem (always register this after rpcQueueContainer has been instantiated)
             this.RegisterNetworkUpdate(NetworkUpdateStage.EarlyUpdate);
             this.RegisterNetworkUpdate(NetworkUpdateStage.PreUpdate);
-
-            if (NetworkConfig.EnableSceneManagement)
-            {
-                NetworkConfig.RegisteredScenes.Sort(StringComparer.Ordinal);
-
-                for (int i = 0; i < NetworkConfig.RegisteredScenes.Count; i++)
-                {
-                    SceneManager.RegisteredSceneNames.Add(NetworkConfig.RegisteredScenes[i]);
-                    SceneManager.SceneIndexToString.Add((uint)i, NetworkConfig.RegisteredScenes[i]);
-                    SceneManager.SceneNameToIndex.Add(NetworkConfig.RegisteredScenes[i], (uint)i);
-                }
-
-                SceneManager.SetCurrentSceneIndex();
-            }
 
             // This is used to remove entries not needed or invalid
             var removeEmptyPrefabs = new List<int>();
@@ -819,11 +844,13 @@ namespace MLAPI
                 NetworkTickSystem.Dispose();
                 NetworkTickSystem = null;
             }
-
+            // NSS TODO: Remove this once MTT-860 is addressed or before PR
 #if !UNITY_2020_2_OR_NEWER
-            NetworkProfiler.Stop();
+            if (IsListening)
+            {
+                NetworkProfiler.Stop();
+            }
 #endif
-            IsListening = false;
             IsServer = false;
             IsClient = false;
             NetworkConfig.NetworkTransport.OnTransportEvent -= HandleRawTransportPoll;
@@ -866,8 +893,14 @@ namespace MLAPI
                 BehaviourUpdater = null;
             }
 
-            //The Transport is set during Init time, thus it is possible for the Transport to be null
-            NetworkConfig?.NetworkTransport?.Shutdown();
+            // NSS TODO: Remove this once MTT-860 is addressed or before PR
+            if (IsListening)
+            {
+                //The Transport is set during initialization, thus it is possible for the Transport to be null
+                NetworkConfig?.NetworkTransport?.Shutdown();
+            }
+
+            IsListening = false;
         }
 
         // INetworkUpdateSystem
@@ -1246,13 +1279,11 @@ namespace MLAPI
                         }
 
                         break;
-                    case NetworkConstants.SWITCH_SCENE:
-                        if (IsClient)
+                    case NetworkConstants.SCENE_EVENT:
                         {
-                            MessageHandler.HandleSwitchScene(clientId, messageStream);
+                            MessageHandler.HandleSceneEvent(clientId, messageStream);
+                            break;
                         }
-
-                        break;
                     case NetworkConstants.CHANGE_OWNER:
                         if (IsClient)
                         {
@@ -1298,30 +1329,17 @@ namespace MLAPI
                     case NetworkConstants.NAMED_MESSAGE:
                         MessageHandler.HandleNamedMessage(clientId, messageStream);
                         break;
-                    case NetworkConstants.CLIENT_SWITCH_SCENE_COMPLETED:
-                        if (IsServer && NetworkConfig.EnableSceneManagement)
-                        {
-                            MessageHandler.HandleClientSwitchSceneCompleted(clientId, messageStream);
-                        }
-                        else if (!NetworkConfig.EnableSceneManagement)
-                        {
-                            NetworkLog.LogWarning($"Server received {nameof(NetworkConstants.CLIENT_SWITCH_SCENE_COMPLETED)} from client id {clientId}");
-                        }
-
-                        break;
                     case NetworkConstants.ALL_CLIENTS_LOADED_SCENE:
                         if (IsClient)
                         {
                             MessageHandler.HandleAllClientsSwitchSceneCompleted(clientId, messageStream);
                         }
-
                         break;
                     case NetworkConstants.SERVER_LOG:
                         if (IsServer && NetworkConfig.EnableNetworkLogs)
                         {
                             MessageHandler.HandleNetworkLog(clientId, messageStream);
                         }
-
                         break;
                     case NetworkConstants.SERVER_RPC:
                         {
@@ -1609,8 +1627,15 @@ namespace MLAPI
 #endif
         }
 
-        private readonly List<NetworkObject> m_ObservedObjects = new List<NetworkObject>();
-
+        /// <summary>
+        /// Server Side: Handles the approval of a client
+        /// </summary>
+        /// <param name="ownerClientId"></param>
+        /// <param name="createPlayerObject"></param>
+        /// <param name="playerPrefabHash"></param>
+        /// <param name="approved"></param>
+        /// <param name="position"></param>
+        /// <param name="rotation"></param>
         internal void HandleApproval(ulong ownerClientId, bool createPlayerObject, uint? playerPrefabHash, bool approved, Vector3? position, Quaternion? rotation)
         {
             if (approved)
@@ -1636,40 +1661,22 @@ namespace MLAPI
                     ConnectedClients[ownerClientId].PlayerObject = networkObject;
                 }
 
-                m_ObservedObjects.Clear();
-
-                foreach (var sobj in SpawnManager.SpawnedObjectsList)
-                {
-                    if (ownerClientId == ServerClientId || sobj.CheckObjectVisibility == null || sobj.CheckObjectVisibility(ownerClientId))
-                    {
-                        m_ObservedObjects.Add(sobj);
-                        sobj.Observers.Add(ownerClientId);
-                    }
-                }
-
+                // Don't send the CONNECTION_APPROVED message if this is the host that connected locally
                 if (ownerClientId != ServerClientId)
                 {
-                    // Don't send any data over the wire if the host "connected"
+
                     using (var buffer = PooledNetworkBuffer.Get())
                     using (var writer = PooledNetworkWriter.Get(buffer))
                     {
                         writer.WriteUInt64Packed(ownerClientId);
-
-                        if (NetworkConfig.EnableSceneManagement)
-                        {
-                            writer.WriteUInt32Packed(NetworkSceneManager.CurrentSceneIndex);
-                            writer.WriteByteArray(NetworkSceneManager.CurrentSceneSwitchProgressGuid.ToByteArray());
-                        }
-
                         writer.WriteSinglePacked(Time.realtimeSinceStartup);
-                        writer.WriteUInt32Packed((uint)m_ObservedObjects.Count);
-
-                        for (int i = 0; i < m_ObservedObjects.Count; i++)
-                        {
-                            m_ObservedObjects[i].SerializeSceneObject(writer, ownerClientId);
-                        }
-
                         MessageSender.Send(ownerClientId, NetworkConstants.CONNECTION_APPROVED, NetworkChannel.Internal, buffer);
+                    }
+
+                    // Now inform the newly joined client of the scenes to be loaded as well as synchronize it with all relevant in-scene and dynamically spawned NetworkObjects
+                    if (NetworkConfig.EnableSceneManagement)
+                    {
+                        SceneManager.SynchronizeNetworkObjects(ownerClientId);
                     }
                 }
 
@@ -1680,62 +1687,72 @@ namespace MLAPI
                     return;
                 }
 
-                // Inform old clients of the new player
-                foreach (KeyValuePair<ulong, NetworkClient> clientPair in ConnectedClients)
-                {
-                    if (clientPair.Key == ownerClientId ||
-                        ConnectedClients[ownerClientId].PlayerObject == null ||
-                        !ConnectedClients[ownerClientId].PlayerObject.Observers.Contains(clientPair.Key))
-                    {
-                        continue; //The new client.
-                    }
-
-                    using (var buffer = PooledNetworkBuffer.Get())
-                    using (var writer = PooledNetworkWriter.Get(buffer))
-                    {
-                        writer.WriteBool(true);
-                        writer.WriteUInt64Packed(ConnectedClients[ownerClientId].PlayerObject.NetworkObjectId);
-                        writer.WriteUInt64Packed(ownerClientId);
-
-                        //Does not have a parent
-                        writer.WriteBool(false);
-
-                        // This is not a scene object
-                        writer.WriteBool(false);
-
-                        writer.WriteUInt32Packed(playerPrefabHash ?? NetworkConfig.PlayerPrefab.GetComponent<NetworkObject>().GlobalObjectIdHash);
-
-                        if (ConnectedClients[ownerClientId].PlayerObject.IncludeTransformWhenSpawning == null || ConnectedClients[ownerClientId].PlayerObject.IncludeTransformWhenSpawning(ownerClientId))
-                        {
-                            writer.WriteBool(true);
-                            writer.WriteSinglePacked(ConnectedClients[ownerClientId].PlayerObject.transform.position.x);
-                            writer.WriteSinglePacked(ConnectedClients[ownerClientId].PlayerObject.transform.position.y);
-                            writer.WriteSinglePacked(ConnectedClients[ownerClientId].PlayerObject.transform.position.z);
-
-                            writer.WriteSinglePacked(ConnectedClients[ownerClientId].PlayerObject.transform.rotation.eulerAngles.x);
-                            writer.WriteSinglePacked(ConnectedClients[ownerClientId].PlayerObject.transform.rotation.eulerAngles.y);
-                            writer.WriteSinglePacked(ConnectedClients[ownerClientId].PlayerObject.transform.rotation.eulerAngles.z);
-                        }
-                        else
-                        {
-                            writer.WriteBool(false);
-                        }
-
-                        writer.WriteBool(false); //No payload data
-
-                        if (NetworkConfig.EnableNetworkVariable)
-                        {
-                            ConnectedClients[ownerClientId].PlayerObject.WriteNetworkVariableData(buffer, clientPair.Key);
-                        }
-
-                        MessageSender.Send(clientPair.Key, NetworkConstants.ADD_OBJECT, NetworkChannel.Internal, buffer);
-                    }
-                }
+                // Separating this into a contained function call for potential further future separation of when this notification is sent.
+                NotifyPlayerConnected(ownerClientId, playerPrefabHash ?? NetworkConfig.PlayerPrefab.GetComponent<NetworkObject>().GlobalObjectIdHash);
             }
             else
             {
                 PendingClients.Remove(ownerClientId);
                 NetworkConfig.NetworkTransport.DisconnectRemoteClient(ownerClientId);
+            }
+        }
+
+        /// <summary>
+        /// Notifies all existing clients that a new player has joined
+        /// </summary>
+        /// <param name="clientId">new player client identifier</param>
+        /// <param name="playerPrefabHash">the prefab GlobalObjectIdHash value for this player</param>
+        internal void NotifyPlayerConnected(ulong clientId, uint playerPrefabHash)
+        {
+            foreach (KeyValuePair<ulong, NetworkClient> clientPair in ConnectedClients)
+            {
+                if (clientPair.Key == clientId ||
+                    ConnectedClients[clientId].PlayerObject == null ||
+                    !ConnectedClients[clientId].PlayerObject.Observers.Contains(clientPair.Key))
+                {
+                    continue; //The new client.
+                }
+
+                using (var buffer = PooledNetworkBuffer.Get())
+                using (var writer = PooledNetworkWriter.Get(buffer))
+                {
+                    writer.WriteBool(true);
+                    writer.WriteUInt64Packed(ConnectedClients[clientId].PlayerObject.NetworkObjectId);
+                    writer.WriteUInt64Packed(clientId);
+
+                    //Does not have a parent
+                    writer.WriteBool(false);
+
+                    // This is not a scene object
+                    writer.WriteBool(false);
+
+                    writer.WriteUInt32Packed(playerPrefabHash);
+
+                    if (ConnectedClients[clientId].PlayerObject.IncludeTransformWhenSpawning == null || ConnectedClients[clientId].PlayerObject.IncludeTransformWhenSpawning(clientId))
+                    {
+                        writer.WriteBool(true);
+                        writer.WriteSinglePacked(ConnectedClients[clientId].PlayerObject.transform.position.x);
+                        writer.WriteSinglePacked(ConnectedClients[clientId].PlayerObject.transform.position.y);
+                        writer.WriteSinglePacked(ConnectedClients[clientId].PlayerObject.transform.position.z);
+
+                        writer.WriteSinglePacked(ConnectedClients[clientId].PlayerObject.transform.rotation.eulerAngles.x);
+                        writer.WriteSinglePacked(ConnectedClients[clientId].PlayerObject.transform.rotation.eulerAngles.y);
+                        writer.WriteSinglePacked(ConnectedClients[clientId].PlayerObject.transform.rotation.eulerAngles.z);
+                    }
+                    else
+                    {
+                        writer.WriteBool(false);
+                    }
+
+                    writer.WriteBool(false); //No payload data
+
+                    if (NetworkConfig.EnableNetworkVariable)
+                    {
+                        ConnectedClients[clientId].PlayerObject.WriteNetworkVariableData(buffer, clientPair.Key);
+                    }
+
+                    MessageSender.Send(clientPair.Key, NetworkConstants.ADD_OBJECT, NetworkChannel.Internal, buffer);
+                }
             }
         }
 

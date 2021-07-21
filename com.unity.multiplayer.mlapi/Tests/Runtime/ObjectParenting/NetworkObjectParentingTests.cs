@@ -43,6 +43,7 @@ namespace MLAPI.RuntimeTests
         [UnitySetUp]
         public IEnumerator Setup()
         {
+            ScenesInBuild.IsTesting = true;
             SceneManager.sceneLoaded += OnSceneLoaded;
 
             var execAssembly = Assembly.GetExecutingAssembly();
@@ -60,6 +61,14 @@ namespace MLAPI.RuntimeTests
             Assert.That(m_ServerNetworkManager, Is.Not.Null);
             Assert.That(m_ClientNetworkManagers, Is.Not.Null);
             Assert.That(m_ClientNetworkManagers.Length, Is.EqualTo(k_ClientInstanceCount));
+            m_ServerNetworkManager.ScenesInBuild.Scenes.Add(nameof(NetworkObjectParentingTests));
+            foreach(var entry in m_ClientNetworkManagers)
+            {
+                if(!m_ServerNetworkManager.ScenesInBuild.Scenes.Contains(nameof(NetworkObjectParentingTests)))
+                {
+                    m_ServerNetworkManager.ScenesInBuild.Scenes.Add(nameof(NetworkObjectParentingTests));
+                }
+            }
 
             m_Dude_NetObjs = new Transform[setCount];
             m_Dude_LeftArm_NetObjs = new Transform[setCount];
@@ -189,6 +198,7 @@ namespace MLAPI.RuntimeTests
         [UnityTearDown]
         public IEnumerator Teardown()
         {
+            ScenesInBuild.IsTesting = false;
             SceneManager.sceneLoaded -= OnSceneLoaded;
 
             MultiInstanceHelpers.Destroy();

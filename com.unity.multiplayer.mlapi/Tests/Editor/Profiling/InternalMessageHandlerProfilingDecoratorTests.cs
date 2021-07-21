@@ -49,19 +49,11 @@ namespace MLAPI.EditorTests.Profiling
         }
 
         [Test]
-        public void HandleSwitchSceneCallsUnderlyingHandler()
+        public void HandleSceneEventCallsUnderlyingHandler()
         {
-            m_Decorator.HandleSwitchScene(0, null);
+            m_Decorator.HandleSceneEvent(0, null);
 
-            LogAssert.Expect(LogType.Log, nameof(m_Decorator.HandleSwitchScene));
-        }
-
-        [Test]
-        public void HandleClientSwitchSceneCompletedCallsUnderlyingHandler()
-        {
-            m_Decorator.HandleClientSwitchSceneCompleted(0, null);
-
-            LogAssert.Expect(LogType.Log, nameof(m_Decorator.HandleClientSwitchSceneCompleted));
+            LogAssert.Expect(LogType.Log, nameof(m_Decorator.HandleSceneEvent));
         }
 
         [Test]

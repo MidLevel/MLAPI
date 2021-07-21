@@ -1,6 +1,7 @@
 using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
 using UnityEngine.UI;
 using MLAPI;
 using MLAPI.Messaging;
@@ -76,7 +77,10 @@ namespace TestProject.ManualTests
         /// </summary>
         private void OnDestroy()
         {
-            NetworkManager.OnClientConnectedCallback -= OnClientConnectedCallback;
+            if (NetworkManager != null)
+            {
+                NetworkManager.OnClientConnectedCallback -= OnClientConnectedCallback;
+            }
         }
 
         /// <summary>
@@ -126,7 +130,7 @@ namespace TestProject.ManualTests
             m_LastStatsDump += "\ndeltaTime: [" + Time.deltaTime.ToString() + "]";
             if (ProfilerStatManager.AllStats.Count != statsinfo.StatValues.Count)
             {
-                Debug.LogError("[StatsDisplay-Error][Mismatch] Recieved " + statsinfo.StatValues.Count.ToString() + " values and have " + ProfilerStatManager.AllStats.Count.ToString() + " profiler stats entries!");
+                Debug.LogError("[StatsDisplay-Error][Mismatch] Received " + statsinfo.StatValues.Count.ToString() + " values and have " + ProfilerStatManager.AllStats.Count.ToString() + " profiler stats entries!");
             }
             else
             {
@@ -140,6 +144,7 @@ namespace TestProject.ManualTests
                     m_LastStatsDump += p.PrettyPrintName + ": " + statsinfo.StatValues[statsCounter].ToString(("0.0"));
                     statsCounter++;
                 }
+                m_LastStatsDump += $"Active Scene: {SceneManager.GetActiveScene().name}";
             }
         }
 
@@ -182,6 +187,8 @@ namespace TestProject.ManualTests
                             }
                             m_LastStatsDump += p.PrettyPrintName + ": " + p.SampleRate().ToString("0.0");
                         }
+                        m_LastStatsDump += $"Active Scene: {SceneManager.GetActiveScene().name}";
+
                     }
                     if (NetworkManager.Singleton.IsServer && m_ClientsToUpdate.Count > 0)
                     {

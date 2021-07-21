@@ -1,0 +1,23 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 39a16938ffb5cd846a9f6df7a686a9c4, type: 3}
+  m_Name: SceneTransitioningBaseSceneRegistration
+  m_EditorClassIdentifier: 
+  SceneToReference: {fileID: 102900000, guid: 780f96a61e8ac8e41b638ae8ec3a3236, type: 3}
+  m_IncludedScenes:
+  - {fileID: 102900000, guid: 41a0239b0c49e2047b7063c822f0df8a, type: 3}
+  - {fileID: 102900000, guid: c6a3d883c8253ee43bca4f2b03797d7b, type: 3}
+  m_DisplayName: Additive Scene Loading
+  m_ReferencedScenes:
+  - SceneTransitioningBase
+  - SecondSceneAddtive
+  - ThirdSceneAdditive

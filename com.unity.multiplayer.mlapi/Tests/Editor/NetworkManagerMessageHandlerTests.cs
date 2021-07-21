@@ -19,18 +19,15 @@ namespace MLAPI.EditorTests
         [Test]
         public void MessageHandlerReceivedMessageServerClient()
         {
+            ScenesInBuild.IsTesting = true;
             // Init
             var gameObject = new GameObject(nameof(MessageHandlerReceivedMessageServerClient));
             var networkManager = gameObject.AddComponent<NetworkManager>();
             var transport = gameObject.AddComponent<DummyTransport>();
 
-            // MLAPI sets this in validate
-            networkManager.NetworkConfig = new NetworkConfig()
-            {
-                // Set the current scene to prevent unexpected log messages which would trigger a failure
-                RegisteredScenes = new List<string>() { SceneManager.GetActiveScene().name }
-            };
-
+            networkManager.PopulateScenesInBuild();
+            networkManager.ScenesInBuild.Scenes.Add(SceneManager.GetActiveScene().name);
+            networkManager.NetworkConfig = new NetworkConfig();
             // Set dummy transport that does nothing
             networkManager.NetworkConfig.NetworkTransport = transport;
 
@@ -67,12 +64,6 @@ namespace MLAPI.EditorTests
 
                 // Should not cause log (client only)
                 using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.DESTROY_OBJECT, inputBuffer))
-                {
-                    networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
-                }
-
-                // Should not cause log (client only)
-                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.SWITCH_SCENE, inputBuffer))
                 {
                     networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
                 }
@@ -122,9 +113,9 @@ namespace MLAPI.EditorTests
                     networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
                 }
 
-                // Should cause log (server only)
-                LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleClientSwitchSceneCompleted));
-                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.CLIENT_SWITCH_SCENE_COMPLETED, inputBuffer))
+                // Should cause log (server and client)
+                LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleSceneEvent));
+                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.SCENE_EVENT, inputBuffer))
                 {
                     networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
                 }
@@ -190,13 +181,6 @@ namespace MLAPI.EditorTests
                 }
 
                 // Should cause log (client only)
-                LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleSwitchScene));
-                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.SWITCH_SCENE, inputBuffer))
-                {
-                    networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
-                }
-
-                // Should cause log (client only)
                 LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleChangeOwner));
                 using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.CHANGE_OWNER, inputBuffer))
                 {
@@ -246,12 +230,6 @@ namespace MLAPI.EditorTests
                 }
 
                 // Should not cause log (server only)
-                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.CLIENT_SWITCH_SCENE_COMPLETED, inputBuffer))
-                {
-                    networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
-                }
-
-                // Should not cause log (server only)
                 using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.SERVER_LOG, inputBuffer))
                 {
                     networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
@@ -272,6 +250,8 @@ namespace MLAPI.EditorTests
 
                 // Full cleanup
                 networkManager.StopClient();
+
+                ScenesInBuild.IsTesting = false;
             }
 
             // Ensure no missmatches with expectations

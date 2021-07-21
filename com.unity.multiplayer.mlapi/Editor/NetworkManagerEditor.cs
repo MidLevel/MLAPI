@@ -46,7 +46,6 @@ namespace MLAPI.Editor
         private SerializedProperty m_MessageBufferTimeoutProperty;
 
         private ReorderableList m_NetworkPrefabsList;
-        private ReorderableList m_RegisteredScenesList;
 
         private NetworkManager m_NetworkManager;
         private bool m_Initialized;
@@ -223,18 +222,6 @@ namespace MLAPI.Editor
                 }
             };
             m_NetworkPrefabsList.drawHeaderCallback = rect => EditorGUI.LabelField(rect, "NetworkPrefabs");
-
-            m_RegisteredScenesList = new ReorderableList(serializedObject, serializedObject.FindProperty(nameof(NetworkManager.NetworkConfig)).FindPropertyRelative(nameof(NetworkConfig.RegisteredScenes)), true, true, true, true);
-            m_RegisteredScenesList.drawElementCallback = (rect, index, isActive, isFocused) =>
-            {
-                var element = m_RegisteredScenesList.serializedProperty.GetArrayElementAtIndex(index);
-                int firstLabelWidth = 50;
-                int padding = 20;
-
-                EditorGUI.LabelField(new Rect(rect.x, rect.y, firstLabelWidth, EditorGUIUtility.singleLineHeight), "Name");
-                EditorGUI.PropertyField(new Rect(rect.x + firstLabelWidth, rect.y, rect.width - firstLabelWidth - padding, EditorGUIUtility.singleLineHeight), element, GUIContent.none);
-            };
-            m_RegisteredScenesList.drawHeaderCallback = rect => EditorGUI.LabelField(rect, "Registered Scene Names");
         }
 
         public override void OnInspectorGUI()
@@ -254,7 +241,6 @@ namespace MLAPI.Editor
                 }
             }
 
-
             if (!m_NetworkManager.IsServer && !m_NetworkManager.IsClient)
             {
                 serializedObject.Update();
@@ -268,13 +254,6 @@ namespace MLAPI.Editor
 
                 m_NetworkPrefabsList.DoLayoutList();
                 EditorGUILayout.Space();
-
-                using (new EditorGUI.DisabledScope(!m_NetworkManager.NetworkConfig.EnableSceneManagement))
-                {
-                    m_RegisteredScenesList.DoLayoutList();
-                    EditorGUILayout.Space();
-                }
-
 
                 EditorGUILayout.LabelField("General", EditorStyles.boldLabel);
                 EditorGUILayout.PropertyField(m_ProtocolVersionProperty);
