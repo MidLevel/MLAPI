@@ -61,77 +61,22 @@ namespace MLAPI.Messaging
             }
         }
 
+        /// <summary>
+        /// Client Side: handles the connection approved message
+        /// </summary>
+        /// <param name="clientId"></param>
+        /// <param name="stream"></param>
+        /// <param name="receiveTime"></param>
         public void HandleConnectionApproved(ulong clientId, Stream stream, float receiveTime)
         {
             using (var reader = PooledNetworkReader.Get(stream))
             {
                 NetworkManager.LocalClientId = reader.ReadUInt64Packed();
 
-                uint sceneIndex = 0;
-                var sceneSwitchProgressGuid = new Guid();
-
-                if (NetworkManager.NetworkConfig.EnableSceneManagement)
-                {
-                    sceneIndex = reader.ReadUInt32Packed();
-                    sceneSwitchProgressGuid = new Guid(reader.ReadByteArray());
-                }
-
-                bool sceneSwitch = NetworkManager.NetworkConfig.EnableSceneManagement && NetworkManager.SceneManager.HasSceneMismatch(sceneIndex);
-
                 float netTime = reader.ReadSinglePacked();
                 NetworkManager.UpdateNetworkTime(clientId, netTime, receiveTime, true);
 
                 NetworkManager.ConnectedClients.Add(NetworkManager.LocalClientId, new NetworkClient { ClientId = NetworkManager.LocalClientId });
-
-
-                void DelayedSpawnAction(Stream continuationStream)
-                {
-                    
-                    using (var continuationReader = PooledNetworkReader.Get(continuationStream))
-                    {
-                        if (!NetworkManager.NetworkConfig.EnableSceneManagement)
-                        {
-                            NetworkManager.SpawnManager.DestroySceneObjects();
-                        }
-                        else
-                        {
-                            NetworkManager.SceneManager.PopulateScenePlacedObjects();
-                        }
-
-                        var objectCount = continuationReader.ReadUInt32Packed();
-                        for (int i = 0; i < objectCount; i++)
-                        {
-                            NetworkObject.DeserializeSceneObject(continuationStream as NetworkBuffer, continuationReader, m_NetworkManager);
-                        }
-
-                        NetworkManager.IsConnectedClient = true;
-                        NetworkManager.InvokeOnClientConnectedCallback(NetworkManager.LocalClientId);
-                    }
-                }
-
-                if (sceneSwitch)
-                {
-                    UnityAction<Scene, Scene> onSceneLoaded = null;
-
-                    var continuationBuffer = new NetworkBuffer();
-                    continuationBuffer.CopyUnreadFrom(stream);
-                    continuationBuffer.Position = 0;
-
-                    void OnSceneLoadComplete()
-                    {
-                        SceneManager.activeSceneChanged -= onSceneLoaded;
-                        NetworkSceneManager.IsSpawnedObjectsPendingInDontDestroyOnLoad = false;
-                        DelayedSpawnAction(continuationBuffer);
-                    }
-
-                    onSceneLoaded = (oldScene, newScene) => { OnSceneLoadComplete(); };
-                    SceneManager.activeSceneChanged += onSceneLoaded;
-                    m_NetworkManager.SceneManager.OnFirstSceneSwitchSync(sceneIndex, sceneSwitchProgressGuid);
-                }
-                else
-                {
-                    DelayedSpawnAction(stream);
-                }
             }
         }
 
@@ -202,28 +147,16 @@ namespace MLAPI.Messaging
             }
         }
 
-        public void HandleSwitchScene(ulong clientId, Stream stream)
+        /// <summary>
+        /// Called for all Scene Management related events
+        /// </summary>
+        /// <param name="clientId"></param>
+        /// <param name="stream"></param>
+        public void HandleSceneEvent(ulong clientId, Stream stream)
         {
-            using (var reader = PooledNetworkReader.Get(stream))
-            {
-                uint sceneIndex = reader.ReadUInt32Packed();
-                var switchSceneGuid = new Guid(reader.ReadByteArray());
-
-                var objectBuffer = new NetworkBuffer();
-                objectBuffer.CopyUnreadFrom(stream);
-                objectBuffer.Position = 0;
-
-                m_NetworkManager.SceneManager.OnSceneSwitch(sceneIndex, switchSceneGuid, objectBuffer);
-            }
+            NetworkManager.SceneManager.HandleSceneEvent(clientId, stream);
         }
 
-        public void HandleClientSwitchSceneCompleted(ulong clientId, Stream stream)
-        {
-            using (var reader = PooledNetworkReader.Get(stream))
-            {
-                m_NetworkManager.SceneManager.OnClientSwitchSceneCompleted(clientId, new Guid(reader.ReadByteArray()));
-            }
-        }
 
         public void HandleChangeOwner(ulong clientId, Stream stream)
         {

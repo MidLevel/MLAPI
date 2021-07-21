@@ -1,6 +1,10 @@
 using System;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.SceneManagement;
+#if UNITY_EDITOR
+using UnityEditor;
+#endif
 using System.Linq;
 using MLAPI.Transports;
 using MLAPI.Hashing;
@@ -28,10 +32,15 @@ namespace MLAPI.Configuration
         public NetworkTransport NetworkTransport = null;
 
         /// <summary>
-        /// A list of SceneNames that can be used during networked games.
+        /// The list of SceneNames built from the RegisteredSceneAssets list
         /// </summary>
-        [Tooltip("The Scenes that can be switched to by the server")]
+        [HideInInspector]
         public List<string> RegisteredScenes = new List<string>();
+
+#if UNITY_EDITOR
+        [Tooltip("The Scenes that can be switched to by the server")]
+        public List<SceneAsset> RegisteredSceneAssets = new List<SceneAsset>();
+#endif
 
         /// <summary>
         /// Whether or not runtime scene changes should be allowed and expected.
@@ -48,7 +57,7 @@ namespace MLAPI.Configuration
         public GameObject PlayerPrefab;
 
         /// <summary>
-        /// A list of spawnable prefabs
+        /// A list of prefabs that can be dynamically spawned.
         /// </summary>
         [SerializeField]
         [Tooltip("The prefabs that can be spawned across the network")]
@@ -336,3 +345,4 @@ namespace MLAPI.Configuration
         }
     }
 }
+

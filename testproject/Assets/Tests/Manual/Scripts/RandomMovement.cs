@@ -27,7 +27,14 @@ namespace TestProject.ManualTests
 
         public void Move(int speed)
         {
-            m_Rigidbody.MovePosition(transform.position + m_Direction * (speed * Time.fixedDeltaTime));
+            if(m_Rigidbody == null)
+            {
+                m_Rigidbody = GetComponent<Rigidbody>();
+            }
+            if (m_Rigidbody != null)
+            {
+                m_Rigidbody.MovePosition(transform.position + m_Direction * (speed * Time.fixedDeltaTime));
+            }
         }
 
         private void OnCollisionStay(Collision collision)

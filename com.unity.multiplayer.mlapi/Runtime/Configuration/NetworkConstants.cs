@@ -11,8 +11,6 @@ namespace MLAPI.Configuration
         internal const byte CONNECTION_APPROVED = 4;
         internal const byte ADD_OBJECT = 5;
         internal const byte DESTROY_OBJECT = 6;
-        internal const byte SWITCH_SCENE = 7;
-        internal const byte CLIENT_SWITCH_SCENE_COMPLETED = 8;
         internal const byte CHANGE_OWNER = 9;
         internal const byte ADD_OBJECTS = 10;
         internal const byte TIME_SYNC = 11;
@@ -27,7 +25,9 @@ namespace MLAPI.Configuration
         internal const byte SNAPSHOT_ACK = 26;
         internal const byte SERVER_RPC = 30;
         internal const byte CLIENT_RPC = 31;
-        internal const byte INVALID = 32;
+        internal const byte SCENE_EVENT = 33;
+        internal const byte CLIENT_SWITCH_SCENE_COMPLETED = 35;
+        internal const byte INVALID = 36;
 
         internal static readonly string[] MESSAGE_NAMES =
         {
@@ -38,8 +38,8 @@ namespace MLAPI.Configuration
             "CONNECTION_APPROVED",
             "ADD_OBJECT",
             "DESTROY_OBJECT",
-            "SWITCH_SCENE",
-            "CLIENT_SWITCH_SCENE_COMPLETED",
+            "",
+            "",
             "CHANGE_OWNER",
             "ADD_OBJECTS",
             "TIME_SYNC",
@@ -63,7 +63,8 @@ namespace MLAPI.Configuration
             "",
             "SERVER_RPC",
             "CLIENT_RPC",
-            "INVALID" // 32
+            "SCENE_EVENT",              // New Scene Event command
+            "INVALID" // 36
         };
     }
 }

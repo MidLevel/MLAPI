@@ -11,8 +11,7 @@ namespace MLAPI.Messaging
         void HandleConnectionApproved(ulong clientId, Stream stream, float receiveTime);
         void HandleAddObject(ulong clientId, Stream stream);
         void HandleDestroyObject(ulong clientId, Stream stream);
-        void HandleSwitchScene(ulong clientId, Stream stream);
-        void HandleClientSwitchSceneCompleted(ulong clientId, Stream stream);
+        void HandleSceneEvent(ulong clientId, Stream stream);
         void HandleChangeOwner(ulong clientId, Stream stream);
         void HandleAddObjects(ulong clientId, Stream stream);
         void HandleDestroyObjects(ulong clientId, Stream stream);

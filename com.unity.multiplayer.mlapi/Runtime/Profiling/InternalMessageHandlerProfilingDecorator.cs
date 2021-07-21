@@ -12,8 +12,7 @@ namespace MLAPI.Profiling
         private readonly ProfilerMarker m_HandleConnectionApproved = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleConnectionApproved)}");
         private readonly ProfilerMarker m_HandleAddObject = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleAddObject)}");
         private readonly ProfilerMarker m_HandleDestroyObject = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleDestroyObject)}");
-        private readonly ProfilerMarker m_HandleSwitchScene = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleSwitchScene)}");
-        private readonly ProfilerMarker m_HandleClientSwitchSceneCompleted = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleClientSwitchSceneCompleted)}");
+        private readonly ProfilerMarker m_HandleSceneEvent = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleSceneEvent)}");
         private readonly ProfilerMarker m_HandleChangeOwner = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleChangeOwner)}");
         private readonly ProfilerMarker m_HandleAddObjects = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleAddObjects)}");
         private readonly ProfilerMarker m_HandleDestroyObjects = new ProfilerMarker($"{nameof(InternalMessageHandler)}.{nameof(HandleDestroyObjects)}");
@@ -71,23 +70,6 @@ namespace MLAPI.Profiling
             m_HandleDestroyObject.End();
         }
 
-        public void HandleSwitchScene(ulong clientId, Stream stream)
-        {
-            m_HandleSwitchScene.Begin();
-
-            m_MessageHandler.HandleSwitchScene(clientId, stream);
-
-            m_HandleSwitchScene.End();
-        }
-
-        public void HandleClientSwitchSceneCompleted(ulong clientId, Stream stream)
-        {
-            m_HandleClientSwitchSceneCompleted.Begin();
-
-            m_MessageHandler.HandleClientSwitchSceneCompleted(clientId, stream);
-
-            m_HandleClientSwitchSceneCompleted.End();
-        }
 
         public void HandleChangeOwner(ulong clientId, Stream stream)
         {
@@ -184,6 +166,15 @@ namespace MLAPI.Profiling
             m_MessageHandler.HandleNetworkLog(clientId, stream);
 
             m_HandleNetworkLog.End();
+        }
+
+        public void HandleSceneEvent(ulong clientId, Stream stream)
+        {
+            m_HandleSceneEvent.Begin();
+
+            m_MessageHandler.HandleSceneEvent(clientId, stream);
+
+            m_HandleSceneEvent.End();
         }
 
         public void HandleAllClientsSwitchSceneCompleted(ulong clientId, Stream stream)

@@ -21,6 +21,11 @@ namespace TestProject.ManualTests
             m_RigidBody = GetComponent<Rigidbody>();
         }
 
+        public void ShouldMoveRandomly(bool shouldMoveRandomly)
+        {
+            m_MoveRandomly = shouldMoveRandomly;
+        }
+
         /// <summary>
         /// Sets the object's direction and velocity
         /// </summary>
@@ -58,15 +63,22 @@ namespace TestProject.ManualTests
                     {
                         Debug.LogWarning($"{nameof(GenericNetworkObjectBehaviour)} id {NetworkObject.NetworkObjectId} is not active and enabled but game object is still active!");
                     }
-
-                    if (NetworkObject != null && !NetworkObject.IsSpawned)
-                    {
-                        Debug.LogWarning($"{nameof(GenericNetworkObjectBehaviour)} id {NetworkObject.NetworkObjectId} is not spawned but still active and enabled");
-                    }
                 }
             }
         }
 
+        /// <summary>
+        /// Tells us that we are registered with a NetworkPefab pool
+        /// This is primarily for late joining clients and object synchronization.
+        /// </summary>
+        public bool IsRegisteredPoolObject;
+
+        /// <summary>
+        /// This tells us that the NetworkObject has been removed from a pool
+        /// This is primarily to handle NetworkPrefab pool that was loaded in an additive scene and the
+        /// additive scene was unloaded but the NetworkObject persisted (i.e. was spawned in a different scene)
+        /// </summary>
+        public bool IsRemovedFromPool;
 
         private void OnTriggerEnter(Collider other)
         {
@@ -78,8 +90,11 @@ namespace TestProject.ManualTests
                 }
                 else
                 {
-                    NetworkObject.Despawn();
-                    NetworkObject.gameObject.SetActive(false);
+                    NetworkObject.Despawn(IsRemovedFromPool);
+                    if (!IsRemovedFromPool)
+                    {
+                        NetworkObject.gameObject.SetActive(false);
+                    }
                 }
             }
         }

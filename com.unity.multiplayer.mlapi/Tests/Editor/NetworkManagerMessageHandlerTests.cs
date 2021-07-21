@@ -72,12 +72,6 @@ namespace MLAPI.EditorTests
                 }
 
                 // Should not cause log (client only)
-                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.SWITCH_SCENE, inputBuffer))
-                {
-                    networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
-                }
-
-                // Should not cause log (client only)
                 using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.CHANGE_OWNER, inputBuffer))
                 {
                     networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
@@ -122,9 +116,9 @@ namespace MLAPI.EditorTests
                     networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
                 }
 
-                // Should cause log (server only)
-                LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleClientSwitchSceneCompleted));
-                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.CLIENT_SWITCH_SCENE_COMPLETED, inputBuffer))
+                // Should cause log (server and client)
+                LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleSceneEvent));
+                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.SCENE_EVENT, inputBuffer))
                 {
                     networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
                 }
@@ -190,13 +184,6 @@ namespace MLAPI.EditorTests
                 }
 
                 // Should cause log (client only)
-                LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleSwitchScene));
-                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.SWITCH_SCENE, inputBuffer))
-                {
-                    networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
-                }
-
-                // Should cause log (client only)
                 LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleChangeOwner));
                 using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.CHANGE_OWNER, inputBuffer))
                 {
@@ -241,12 +228,6 @@ namespace MLAPI.EditorTests
                 // Should cause log (server and client)
                 LogAssert.Expect(LogType.Log, nameof(DummyMessageHandler.HandleNamedMessage));
                 using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.NAMED_MESSAGE, inputBuffer))
-                {
-                    networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
-                }
-
-                // Should not cause log (server only)
-                using (var messageStream = MessagePacker.WrapMessage(NetworkConstants.CLIENT_SWITCH_SCENE_COMPLETED, inputBuffer))
                 {
                     networkManager.HandleIncomingData(0, NetworkChannel.Internal, new ArraySegment<byte>(messageStream.GetBuffer(), 0, (int)messageStream.Length), 0, true);
                 }
