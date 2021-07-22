@@ -12,6 +12,7 @@ namespace MLAPI.Prototyping
     [AddComponentMenu("MLAPI/NetworkAnimator")]
     public class NetworkAnimator : NetworkBehaviour
     {
+        
         private class AnimatorSnapshot : INetworkSerializable
         {
             public Dictionary<int, bool> BoolParameters;
@@ -238,11 +239,17 @@ namespace MLAPI.Prototyping
             Server = 0,
             Owner
         }
+        
+        /// <summary>
+        /// This constant is used to force the resync if the delta between current
+        /// and last synced normalized state time goes above it
+        /// </summary>
+        private const float NormalizedTimeResyncThreshold = 0.15f;
 
         /// <summary>
         /// Specifies who can update this animator
         /// </summary>
-        [Tooltip("Defines who can update this transform.")]
+        [Tooltip("Defines who can update this animator.")]
         public Authority AnimatorAuthority = Authority.Owner;
 
         [SerializeField]
@@ -254,6 +261,8 @@ namespace MLAPI.Prototyping
 
         private AnimatorSnapshot m_AnimatorSnapshot;
         private List<(int, AnimatorControllerParameterType)> m_CachedAnimatorParameters;
+
+        public bool IsAuthorityOverAnimator => (IsClient && AnimatorAuthority == Authority.Owner && IsOwner) || (IsServer && AnimatorAuthority == Authority.Server);
 
         public override void OnNetworkSpawn()
         {
@@ -297,6 +306,11 @@ namespace MLAPI.Prototyping
             var states = new LayerState[m_Animator.layerCount];
 
             m_AnimatorSnapshot = new AnimatorSnapshot(boolParameters, floatParameters, intParameters, triggerParameters, states);
+            
+            if (!IsAuthorityOverAnimator)
+            {
+                m_Animator.StopPlayback();
+            }
         }
 
         private void OnEnable()
@@ -344,13 +358,10 @@ namespace MLAPI.Prototyping
             {
                 return;
             }
-
+            
             m_ServerRequestsAnimationResync = true;
         }
-
-
-        private bool IsAuthorityOverAnimator => (IsClient && AnimatorAuthority == Authority.Owner && IsOwner) || (IsServer && AnimatorAuthority == Authority.Server);
-
+        
         private void FixedUpdate()
         {
             if (!NetworkObject.IsSpawned)
@@ -399,14 +410,15 @@ namespace MLAPI.Prototyping
             {
                 var animStateInfo = m_Animator.GetCurrentAnimatorStateInfo(i);
 
-                bool didStateChange = m_AnimatorSnapshot.LayerStates[i].StateHash != animStateInfo.fullPathHash;
+                var snapshotAnimStateInfo = m_AnimatorSnapshot.LayerStates[i];
+                bool didStateChange = snapshotAnimStateInfo.StateHash != animStateInfo.fullPathHash;
                 bool enoughDelta = !didStateChange &&
-                                   (animStateInfo.normalizedTime - m_AnimatorSnapshot.LayerStates[i].NormalizedStateTime) >= 0.15f;
+                                   Mathf.Abs(animStateInfo.normalizedTime - snapshotAnimStateInfo.NormalizedStateTime) >= NormalizedTimeResyncThreshold;
 
                 float newLayerWeight = m_Animator.GetLayerWeight(i);
-                bool layerWeightChanged = Mathf.Abs(m_AnimatorSnapshot.LayerStates[i].LayerWeight - newLayerWeight) > Mathf.Epsilon;
+                bool layerWeightChanged = Mathf.Abs(snapshotAnimStateInfo.LayerWeight - newLayerWeight) > Mathf.Epsilon;
 
-                if (didStateChange || enoughDelta || layerWeightChanged)
+                if (didStateChange || enoughDelta || layerWeightChanged || m_ServerRequestsAnimationResync)
                 {
                     m_AnimatorSnapshot.LayerStates[i] = new LayerState
                     {
@@ -478,13 +490,11 @@ namespace MLAPI.Prototyping
         [ServerRpc]
         private void SendParamsAndLayerStatesServerRpc(AnimatorSnapshot animSnapshot, ServerRpcParams serverRpcParams = default)
         {
-            if (IsOwner)
+            if (!IsAuthorityOverAnimator)
             {
-                return;
+                ApplyAnimatorSnapshot(animSnapshot);
             }
-
-            ApplyAnimatorSnapshot(animSnapshot);
-
+            
             var clientRpcParams = new ClientRpcParams
             {
                 Send = new ClientRpcSendParams
@@ -502,12 +512,10 @@ namespace MLAPI.Prototyping
         [ClientRpc]
         private void SendParamsAndLayerStatesClientRpc(AnimatorSnapshot animSnapshot, ClientRpcParams clientRpcParams = default)
         {
-            if (IsOwner || IsHost)
+            if (!IsAuthorityOverAnimator)
             {
-                return;
+                ApplyAnimatorSnapshot(animSnapshot);
             }
-
-            ApplyAnimatorSnapshot(animSnapshot);
         }
 
         private void ApplyAnimatorSnapshot(AnimatorSnapshot animatorSnapshot)
@@ -541,7 +549,8 @@ namespace MLAPI.Prototyping
                 var currentAnimatorState = m_Animator.GetCurrentAnimatorStateInfo(layerIndex);
 
                 bool stateChanged = currentAnimatorState.fullPathHash != layerState.StateHash;
-                bool forceAnimationCatchup = !stateChanged && Mathf.Abs(currentAnimatorState.normalizedTime - currentAnimatorState.normalizedTime) >= 0.15f;
+                bool forceAnimationCatchup = !stateChanged &&
+                                             Mathf.Abs(layerState.NormalizedStateTime - currentAnimatorState.normalizedTime) >= NormalizedTimeResyncThreshold;
 
                 if (stateChanged || forceAnimationCatchup)
                 {
